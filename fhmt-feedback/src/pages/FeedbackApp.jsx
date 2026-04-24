@@ -259,11 +259,11 @@ export default function FeedbackApp() {
   if(view==="welcome")return <Welcome onStart={handleStart} />;
   if(submitted)return(
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",padding:20}}>
-      <div style={{textAlign:"center",maxWidth:400}}>
-        <img src={logoImg} alt="Logo" style={{width:72,height:72,objectFit:"contain",display:"block",margin:"0 auto 16px"}}/>
-        <div style={{fontSize:48,marginBottom:12}}>🙏</div>
-        <h2 style={{color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif",fontSize:24,margin:"0 0 12px"}}>感謝你的回饋！</h2>
-        <p style={{color:"#9a8a6e",fontSize:15,lineHeight:1.8,margin:0}}>你的意見已經記錄下來<br/>感謝你花時間測試方壺山道場。</p>
+      <div style={{textAlign:"center",maxWidth:420}}>
+        <img src={logoImg} alt="Logo" style={{width:100,height:100,objectFit:"contain",display:"block",margin:"0 auto 20px"}}/>
+        <h2 style={{color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif",fontSize:24,margin:"0 0 16px"}}>感謝除蟲小夥伴</h2>
+        <p style={{color:"#9a8a6e",fontSize:15,lineHeight:1.9,margin:"0 0 28px"}}>你捉的蟲蟲們隊長技師已拿到，會盡快移除。<br/>如果想再測試其他裝置，可以點擊下方開始新測試。</p>
+        <button onClick={()=>{localStorage.removeItem('fhmt_user');setUserInfo(null);setAnswers({});setFreeform({});setSubmitted(false);setView("welcome");}} style={{padding:"12px 32px",borderRadius:12,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",letterSpacing:1}}>開始新測試</button>
       </div>
     </div>
   );
