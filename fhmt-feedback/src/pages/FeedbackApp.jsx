@@ -1,7 +1,25 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { dbGet, dbSet } from "../firebase";
+import { dbGet, dbSet, dbUpload } from "../firebase";
 
 const safeId = s => s.replace(/[.#$[\]]/g, '_');
+
+function compressImage(file, maxW = 1200, quality = 0.78) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => resolve(blob || file), 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
 
 const SCALES = {
   default: { options:["ok","weird","confused"], labels:{ok:"✅ 順",weird:"😕 怪",confused:"❓ 不會用"}, colors:{ok:"#5a8a3c",weird:"#c49000",confused:"#a05520"} },
@@ -48,20 +66,60 @@ function Chip({value,scale="default",onChange}) {
   return (<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{s.options.map(o=>{const a=value===o;return(<button key={o} onClick={()=>onChange(a?null:o)} style={{padding:"6px 14px",borderRadius:20,border:`2px solid ${s.colors[o]}`,background:a?s.colors[o]:"transparent",color:a?"#fff":s.colors[o],fontWeight:600,fontSize:13,cursor:"pointer",transition:"all .15s",opacity:value&&!a?0.45:1,whiteSpace:"nowrap"}}>{s.labels[o]}</button>);})}</div>);
 }
 
-function Item({item,answer,scale,onAnswer}) {
-  const [exp,setExp]=useState(false); const hc=answer?.comment?.length>0;
+function Item({item,answer,scale,onAnswer,uid}) {
+  const [exp,setExp]=useState(false);
+  const [uploading,setUploading]=useState(false);
+  const fileRef=useRef(null);
+  const hc=answer?.comment?.length>0;
+  const hasStatus=!!answer?.status;
+  const images=answer?.images||[];
+
+  const handleUpload=async(e)=>{
+    const files=Array.from(e.target.files).slice(0,2-images.length);
+    if(!files.length)return;
+    e.target.value='';
+    setUploading(true);
+    const urls=[];
+    for(const f of files){
+      const blob=await compressImage(f);
+      const path=`images/${safeId(uid||'anon')}/${safeId(item.id)}/${Date.now()}`;
+      const url=await dbUpload(path,blob);
+      if(url)urls.push(url);
+    }
+    onAnswer({...answer,images:[...images,...urls]});
+    setUploading(false);
+  };
+
+  const removeImg=(idx)=>onAnswer({...answer,images:images.filter((_,i)=>i!==idx)});
+
   return(<div style={{padding:"14px 16px",borderRadius:10,background:answer?.status==="weird"?"rgba(196,144,0,.07)":answer?.status==="confused"?"rgba(160,85,32,.07)":"rgba(255,255,255,.5)",border:`1px solid ${answer?.status==="weird"?"rgba(196,144,0,.25)":answer?.status==="confused"?"rgba(160,85,32,.2)":"rgba(0,0,0,.06)"}`,transition:"all .2s"}}>
     <div style={{display:"flex",gap:10,alignItems:"flex-start",flexWrap:"wrap"}}>
       <span style={{fontSize:12,color:"#9a8a6e",fontWeight:700,minWidth:36,paddingTop:2,fontFamily:"monospace"}}>{item.id}</span>
       <div style={{flex:1,minWidth:200}}><p style={{margin:0,fontSize:14,lineHeight:1.6,color:"#3d3225"}}>{item.text}</p></div>
       <Chip value={answer?.status} scale={scale} onChange={v=>onAnswer({...answer,status:v})} />
     </div>
-    <div style={{marginTop:8}}><button onClick={()=>setExp(!exp)} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:hc?"#8B5A2B":"#a09880",display:"flex",alignItems:"center",gap:4,padding:"2px 0"}}><span>{exp?"▾":"▸"}</span><span>{hc?"已留言":"想說的話..."}</span></button></div>
-    {exp&&<textarea value={answer?.comment||""} onChange={e=>onAnswer({...answer,comment:e.target.value})} placeholder="有什麼想說的？" style={{width:"100%",marginTop:6,padding:10,borderRadius:8,fontSize:13,border:"1px solid rgba(0,0,0,.1)",background:"rgba(255,255,255,.8)",resize:"vertical",minHeight:60,fontFamily:"inherit",lineHeight:1.5,boxSizing:"border-box",outline:"none"}} />}
+    {hasStatus&&(<div style={{marginTop:10}}>
+      <button onClick={()=>setExp(!exp)} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:hc?"#8B5A2B":"#a09880",display:"flex",alignItems:"center",gap:4,padding:"2px 0"}}><span>{exp?"▾":"▸"}</span><span>{hc?"✎ 已留言":"想說的話..."}</span></button>
+      {exp&&<textarea value={answer?.comment||""} onChange={e=>onAnswer({...answer,comment:e.target.value})} placeholder="有什麼想說的？" style={{width:"100%",marginTop:6,padding:10,borderRadius:8,fontSize:13,border:"1px solid rgba(0,0,0,.1)",background:"rgba(255,255,255,.8)",resize:"vertical",minHeight:60,fontFamily:"inherit",lineHeight:1.5,boxSizing:"border-box",outline:"none"}} />}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,flexWrap:"wrap"}}>
+        {images.map((url,i)=>(
+          <div key={i} style={{position:"relative"}}>
+            <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="" style={{width:72,height:54,objectFit:"cover",borderRadius:6,border:"1px solid rgba(0,0,0,.1)",display:"block"}}/></a>
+            <button onClick={()=>removeImg(i)} style={{position:"absolute",top:-6,right:-6,width:18,height:18,borderRadius:9,background:"#c44028",border:"none",color:"#fff",fontSize:11,cursor:"pointer",lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",padding:0}}>×</button>
+          </div>
+        ))}
+        {images.length<2&&(
+          <label style={{display:"flex",alignItems:"center",gap:4,padding:"6px 12px",borderRadius:8,border:"1px dashed rgba(0,0,0,.18)",cursor:"pointer",fontSize:12,color:"#9a8a6e",background:"rgba(255,255,255,.5)"}}>
+            {uploading?"上傳中...":"📷 附圖"}
+            <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleUpload} style={{display:"none"}} disabled={uploading}/>
+          </label>
+        )}
+      </div>
+    </div>)}
   </div>);
 }
 
-function PartView({part,answers,onAnswer}) {
+function PartView({part,answers,onAnswer,uid}) {
   return(<div>
     <div style={{marginBottom:24}}>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}><span style={{fontSize:28}}>{part.icon}</span><h2 style={{margin:0,fontSize:20,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>{part.title}　{part.subtitle}</h2></div>
@@ -70,7 +128,7 @@ function PartView({part,answers,onAnswer}) {
     {part.sections.map((sec,si)=>(<div key={si} style={{marginBottom:28}}>
       <h3 style={{margin:"0 0 6px",fontSize:15,color:"#6B4E2E",borderLeft:"3px solid #C89B7B",paddingLeft:10}}>{sec.title}</h3>
       {sec.note&&<p style={{margin:"0 0 10px",fontSize:12.5,color:"#9a8a6e",lineHeight:1.6,paddingLeft:14}}>{sec.note}</p>}
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>{sec.items.map(item=><Item key={item.id} item={item} answer={answers[item.id]} scale={sec.scale||"default"} onAnswer={a=>onAnswer(item.id,a)} />)}</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>{sec.items.map(item=><Item key={item.id} item={item} answer={answers[item.id]} scale={sec.scale||"default"} onAnswer={a=>onAnswer(item.id,a)} uid={uid}/>)}</div>
     </div>))}
   </div>);
 }
@@ -196,7 +254,7 @@ export default function FeedbackApp() {
         {!isMob&&<aside style={{width:240,minWidth:240,borderRight:"1px solid rgba(0,0,0,.06)",background:"rgba(255,255,255,.4)",overflowY:"auto",padding:"8px 6px"}}><Nav parts={parts} cur={cur} onSelect={id=>{setCur(id);scrollTop();}} answers={answers} freeform={freeform}/></aside>}
         {mobNav&&<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:200,background:"rgba(0,0,0,.3)",backdropFilter:"blur(4px)"}} onClick={()=>setMobNav(false)}><div style={{width:280,height:"100%",background:"rgba(247,240,227,.98)",overflowY:"auto",padding:"60px 10px 20px",boxShadow:"4px 0 20px rgba(0,0,0,.1)"}} onClick={e=>e.stopPropagation()}><Nav parts={parts} cur={cur} onSelect={id=>{setCur(id);setMobNav(false);scrollTop();}} answers={answers} freeform={freeform}/></div></div>}
         <main ref={contentRef} style={{flex:1,overflowY:"auto",padding:"24px 20px 60px",maxWidth:800,margin:"0 auto",width:"100%"}}>
-          {cur==="freeform"?<Freeform answers={freeform} onAnswer={(k,v)=>setFreeform(p=>({...p,[k]:v}))}/>:active?<PartView part={active} answers={answers} onAnswer={(id,a)=>setAnswers(p=>({...p,[id]:a}))}/>:null}
+          {cur==="freeform"?<Freeform answers={freeform} onAnswer={(k,v)=>setFreeform(p=>({...p,[k]:v}))}/>:active?<PartView part={active} answers={answers} onAnswer={(id,a)=>setAnswers(p=>({...p,[id]:a}))} uid={uid}/>:null}
           <div style={{display:"flex",justifyContent:"space-between",marginTop:32,paddingTop:20,borderTop:"1px solid rgba(0,0,0,.08)"}}>
             {cur!==allIds[0]?<button onClick={()=>{const i=allIds.indexOf(cur);if(i>0){setCur(allIds[i-1]);scrollTop();}}} style={{padding:"10px 20px",borderRadius:10,background:"rgba(255,255,255,.6)",border:"1px solid rgba(0,0,0,.1)",cursor:"pointer",fontSize:13,color:"#6b5830"}}>← 上一段</button>:<div/>}
             {cur!=="freeform"?<button onClick={()=>{const i=allIds.indexOf(cur);if(i<allIds.length-1){setCur(allIds[i+1]);scrollTop();}}} style={{padding:"10px 20px",borderRadius:10,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",border:"none",cursor:"pointer",fontSize:13,color:"#fff",fontWeight:600}}>下一段 →</button>

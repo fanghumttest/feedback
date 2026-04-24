@@ -228,6 +228,7 @@ function Overview({ users, parts, onDelete }) {
         <div key={id} style={{ padding: "8px 12px", borderRadius: 8, marginBottom: 6, background: a.status === "confused" ? "rgba(160,85,32,.06)" : "rgba(196,144,0,.06)", border: `1px solid ${a.status === "confused" ? "rgba(160,85,32,.15)" : "rgba(196,144,0,.15)"}` }}>
           <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}><span style={{ fontSize: 11, fontFamily: "monospace", color: "#9a8a6e", minWidth: 36 }}>{id}</span><span style={{ flex: 1, fontSize: 12.5, color: "#3d3225" }}>{findItemText(parts, id)}</span></div>
           {a.comment && <p style={{ margin: "4px 0 0 42px", fontSize: 12, color: "#6b5830", fontStyle: "italic" }}>「{a.comment}」</p>}
+          {a.images?.length > 0 && <div style={{ display: "flex", gap: 6, marginTop: 4, marginLeft: 42, flexWrap: "wrap" }}>{a.images.map((url, i) => <a key={i} href={url} target="_blank" rel="noreferrer"><img src={url} alt="" style={{ width: 64, height: 48, objectFit: "cover", borderRadius: 5, border: "1px solid rgba(0,0,0,.1)" }} /></a>)}</div>}
         </div>
       ))}
       {sel.freeform && Object.entries(sel.freeform).filter(([, v]) => v).map(([k, v]) => (<div key={k} style={{ marginTop: 8 }}><div style={{ fontSize: 12, color: "#9a8a6e", fontWeight: 600 }}>{k}</div><p style={{ margin: "2px 0 0", fontSize: 13, color: "#3d3225", whiteSpace: "pre-wrap" }}>{v}</p></div>))}
@@ -263,7 +264,7 @@ function Comments({ users, parts }) {
   for (const u of users) {
     if (!u.answers) continue;
     for (const [id, a] of Object.entries(u.answers)) {
-      if (a?.comment) inline.push({ u, id, comment: a.comment, status: a.status, text: findItemText(parts, id) });
+      if (a?.comment || a?.images?.length) inline.push({ u, id, comment: a.comment, status: a.status, text: findItemText(parts, id), images: a.images||[] });
     }
   }
 
@@ -305,7 +306,16 @@ function Comments({ users, parts }) {
             </div>
             <div style={{ paddingLeft: 46 }}>
               <span style={{ fontSize: 12, color: "#8B5A2B", fontWeight: 600 }}>{c.u.nickname || "匿名"}</span>
-              <span style={{ fontSize: 12, color: "#6b5830", fontStyle: "italic" }}>：「{c.comment}」</span>
+              {c.comment && <span style={{ fontSize: 12, color: "#6b5830", fontStyle: "italic" }}>：「{c.comment}」</span>}
+              {c.images?.length > 0 && (
+                <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+                  {c.images.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noreferrer">
+                      <img src={url} alt="" style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 6, border: "1px solid rgba(0,0,0,.1)", display: "block" }} />
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}

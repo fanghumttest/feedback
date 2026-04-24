@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, get, set, remove } from 'firebase/database';
+import { getStorage, ref as sref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const app = initializeApp({
   apiKey: "AIzaSyDYB580igT9-A5Dc8HF2IO-d4HsyRgTaH0",
@@ -12,6 +13,7 @@ const app = initializeApp({
 });
 
 const db = getDatabase(app);
+const storage = getStorage(app);
 
 export const dbGet = async (path) => {
   try {
@@ -35,4 +37,11 @@ export const dbDel = async (path) => {
     await remove(ref(db, path));
     return true;
   } catch { return false; }
+};
+
+export const dbUpload = async (path, blob) => {
+  try {
+    const snap = await uploadBytes(sref(storage, path), blob);
+    return await getDownloadURL(snap.ref);
+  } catch (e) { console.error('upload error:', e); return null; }
 };
