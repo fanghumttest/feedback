@@ -202,7 +202,7 @@ function QuestionEditor({parts, onSave}) {
 }
 
 // ── Overview ────────────────────────────────────────────────
-function Overview({ users, parts }) {
+function Overview({ users, parts, onDelete }) {
   const [sel, setSel] = useState(null); const total = TOTAL(parts);
   const getP = u => { if (!u?.answers) return { done: 0, pct: 0 }; const d = Object.values(u.answers).filter(a => a?.status).length; return { done: d, pct: d / total }; };
   return (<div style={{ display: "grid", gridTemplateColumns: sel ? "1fr 1fr" : "1fr", gap: 20, alignItems: "start" }}>
@@ -212,10 +212,13 @@ function Overview({ users, parts }) {
           const p = getP(u); const act = sel?.odName === u.odName;
           const wc = u.answers ? Object.values(u.answers).filter(a => a?.status === "weird").length : 0;
           const cc = u.answers ? Object.values(u.answers).filter(a => a?.status === "confused").length : 0;
-          return (<button key={u.odName || u.nickname} onClick={() => setSel(act ? null : u)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: act ? "rgba(139,90,43,.08)" : "rgba(255,255,255,.7)", border: `1.5px solid ${act ? "rgba(139,90,43,.25)" : "rgba(0,0,0,.06)"}`, borderRadius: 14, cursor: "pointer", textAlign: "left", width: "100%" }}>
-            <Ring progress={p.pct} /><div style={{ flex: 1 }}><div style={{ fontSize: 15, fontWeight: 600, color: "#5B3A1F" }}>{u.nickname || "匿名"}</div><div style={{ fontSize: 12, color: "#9a8a6e", marginTop: 2 }}>{[u.device, u.browser, u.role].filter(Boolean).join(" · ")}</div></div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}><div style={{ fontSize: 16, fontWeight: 700, color: p.pct >= 1 ? "#6B8E4E" : "#a09880" }}>{Math.round(p.pct * 100)}%</div><div style={{ display: "flex", gap: 6, fontSize: 11 }}>{wc > 0 && <span style={{ color: "#c49000" }}>😕{wc}</span>}{cc > 0 && <span style={{ color: "#a05520" }}>❓{cc}</span>}</div></div>
-          </button>);
+          return (<div key={u.odName || u.nickname} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => setSel(act ? null : u)} style={{ flex: 1, display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: act ? "rgba(139,90,43,.08)" : "rgba(255,255,255,.7)", border: `1.5px solid ${act ? "rgba(139,90,43,.25)" : "rgba(0,0,0,.06)"}`, borderRadius: 14, cursor: "pointer", textAlign: "left" }}>
+              <Ring progress={p.pct} /><div style={{ flex: 1 }}><div style={{ fontSize: 15, fontWeight: 600, color: "#5B3A1F" }}>{u.nickname || "匿名"}</div><div style={{ fontSize: 12, color: "#9a8a6e", marginTop: 2 }}>{[u.device, u.browser, u.role].filter(Boolean).join(" · ")}</div></div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}><div style={{ fontSize: 16, fontWeight: 700, color: p.pct >= 1 ? "#6B8E4E" : "#a09880" }}>{Math.round(p.pct * 100)}%</div><div style={{ display: "flex", gap: 6, fontSize: 11 }}>{wc > 0 && <span style={{ color: "#c49000" }}>😕{wc}</span>}{cc > 0 && <span style={{ color: "#a05520" }}>❓{cc}</span>}</div></div>
+            </button>
+            <button onClick={() => { if(window.confirm(`確定刪除「${u.nickname}」的填寫資料？`)) { if(sel?.odName===u.odName) setSel(null); onDelete(u.odName); } }} style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(196,80,40,.1)", border: "1px solid rgba(196,80,40,.15)", color: "#c44028", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>🗑</button>
+          </div>);
         })}
     </div>
     {sel && (<div style={{ position: "sticky", top: 80, padding: "20px 22px", borderRadius: 14, background: "rgba(255,255,255,.75)", border: "1px solid rgba(0,0,0,.06)" }}>
@@ -261,6 +264,11 @@ export default function Dashboard() {
   const init = async () => { setLoading(true); let q = await loadQ(); if (!q) { q = DEFAULT_PARTS; await saveQ(q); } setParts(q); setUsers(await loadAllUsers()); setLoading(false); };
   useEffect(() => { init(); }, []);
 
+  const deleteUser = async (uid) => {
+    await dbDel(`kv/feedbacks/${safeId(uid)}`);
+    setUsers(prev => prev.filter(u => u.odName !== uid));
+  };
+
   const exportCSV = () => {
     if (!parts || users.length === 0) return;
     const all = parts.flatMap(p => p.sections.flatMap(s => s.items.map(i => ({ ...i, part: p.subtitle }))));
@@ -298,7 +306,7 @@ export default function Dashboard() {
           <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "10px 18px", border: "none", cursor: "pointer", background: tab === t.id ? "rgba(139,90,43,.1)" : "transparent", borderBottom: tab === t.id ? "3px solid #8B5A2B" : "3px solid transparent", fontSize: 14, fontWeight: tab === t.id ? 700 : 400, color: tab === t.id ? "#5B3A1F" : "#9a8a6e", borderRadius: "8px 8px 0 0" }}>{t.label}</button>
         ))}
       </div>
-      {tab === "overview" && parts && <Overview users={users} parts={parts} />}
+      {tab === "overview" && parts && <Overview users={users} parts={parts} onDelete={deleteUser} />}
       {tab === "hotspots" && parts && <Hotspots users={users} parts={parts} />}
       {tab === "editor" && parts && <QuestionEditor parts={parts} onSave={d => setParts(d)} />}
     </div>
