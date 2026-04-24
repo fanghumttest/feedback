@@ -1,8 +1,5 @@
 import { useState, useEffect } from "react";
-
-const QK = "fhmt-questions";
-const PK = "fhmt-passcode";
-const FK = "fhmt-feedback:";
+import { dbGet, dbSet, dbDel } from "../firebase";
 
 // ── 預設題目 ────────────────────────────────────────────────
 const DEFAULT_PARTS = [
@@ -45,11 +42,12 @@ const DEFAULT_PARTS = [
 ];
 
 // ── Storage ─────────────────────────────────────────────────
-async function loadQ(){try{const r=await window.storage.get(QK,true);return r?JSON.parse(r.value):null;}catch{return null;}}
-async function saveQ(d){try{await window.storage.set(QK,JSON.stringify(d),true);return true;}catch{return false;}}
-async function loadPasscode(){try{const r=await window.storage.get(PK,true);return r?r.value:null;}catch{return null;}}
-async function savePasscode(v){try{await window.storage.set(PK,v,true);return true;}catch{return false;}}
-async function loadAllUsers(){try{const keys=await window.storage.list(FK,true);if(!keys?.keys)return[];const u=[];for(const k of keys.keys){try{const r=await window.storage.get(k,true);if(r)u.push(JSON.parse(r.value));}catch{}}return u;}catch{return[];}}
+const safeId = s => s.replace(/[.#$[\]]/g, '_');
+async function loadQ()        { return await dbGet('kv/questions'); }
+async function saveQ(d)       { return await dbSet('kv/questions', d); }
+async function loadPasscode() { return await dbGet('kv/passcode'); }
+async function savePasscode(v){ if(!v||!v.trim()) return await dbDel('kv/passcode'); return await dbSet('kv/passcode', v.trim()); }
+async function loadAllUsers() { const data=await dbGet('kv/feedbacks'); if(!data) return []; return Object.values(data); }
 
 const TOTAL=(parts)=>parts.reduce((t,p)=>t+p.sections.reduce((s,sec)=>s+sec.items.length,0),0);
 function findItemText(parts,id){for(const p of parts)for(const s of p.sections)for(const i of s.items)if(i.id===id)return i.text;return id;}
@@ -77,7 +75,7 @@ function PasscodeSettings() {
     setCode("");
     setSaving(true);
     // 刪除 passcode key
-    try { await window.storage.delete(PK, true); } catch {}
+    await dbDel('kv/passcode');
     setSaving(false);
     setMsg("✓ 通行碼已清除，測試回饋系統改為開放進入");
     setTimeout(() => setMsg(""), 3000);
