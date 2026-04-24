@@ -254,6 +254,66 @@ function Hotspots({ users, parts }) {
   </div>);
 }
 
+// ── Comments ─────────────────────────────────────────────────
+function Comments({ users, parts }) {
+  const freeforms = users.filter(u => u.freeform && Object.values(u.freeform).some(v => v))
+    .map(u => ({ u, entries: Object.entries(u.freeform).filter(([, v]) => v) }));
+
+  const inline = [];
+  for (const u of users) {
+    if (!u.answers) continue;
+    for (const [id, a] of Object.entries(u.answers)) {
+      if (a?.comment) inline.push({ u, id, comment: a.comment, status: a.status, text: findItemText(parts, id) });
+    }
+  }
+
+  if (freeforms.length === 0 && inline.length === 0) {
+    return (<div style={{ padding: 40, textAlign: "center", color: "#9a8a6e", background: "rgba(255,255,255,.6)", borderRadius: 14 }}><p style={{ fontSize: 18, marginBottom: 8 }}>💬</p><p style={{ margin: 0 }}>還沒有任何留言。</p></div>);
+  }
+
+  return (<div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+    {freeforms.length > 0 && (<div>
+      <h3 style={{ margin: "0 0 12px", fontSize: 15, color: "#5B3A1F" }}>📝 自由回饋</h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {freeforms.map(({ u, entries }) => (
+          <div key={u.odName} style={{ padding: "16px 18px", borderRadius: 14, background: "rgba(255,255,255,.75)", border: "1px solid rgba(0,0,0,.06)" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#5B3A1F", marginBottom: 10 }}>
+              {u.nickname || "匿名"}
+              <span style={{ fontSize: 11, color: "#9a8a6e", fontWeight: 400, marginLeft: 8 }}>{[u.device, u.browser, u.role].filter(Boolean).join(" · ")}</span>
+            </div>
+            {entries.map(([k, v]) => (
+              <div key={k} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 12, color: "#9a8a6e", fontWeight: 600, marginBottom: 3 }}>{k}</div>
+                <p style={{ margin: 0, fontSize: 13, color: "#3d3225", whiteSpace: "pre-wrap", lineHeight: 1.7 }}>{v}</p>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>)}
+    {inline.length > 0 && (<div>
+      <h3 style={{ margin: "0 0 12px", fontSize: 15, color: "#5B3A1F" }}>💬 題目留言（{inline.length}）</h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {inline.map((c, i) => (
+          <div key={i} style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,.75)", border: "1px solid rgba(0,0,0,.06)" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 6 }}>
+              <span style={{ fontSize: 11, fontFamily: "monospace", color: "#9a8a6e", minWidth: 38 }}>{c.id}</span>
+              <span style={{ flex: 1, fontSize: 12.5, color: "#3d3225" }}>{c.text}</span>
+              <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 8, background: c.status === "confused" ? "rgba(160,85,32,.08)" : "rgba(196,144,0,.08)", color: c.status === "confused" ? "#a05520" : "#c49000", whiteSpace: "nowrap" }}>
+                {c.status === "confused" ? "❓不懂" : "😕怪"}
+              </span>
+            </div>
+            <div style={{ paddingLeft: 46 }}>
+              <span style={{ fontSize: 12, color: "#8B5A2B", fontWeight: 600 }}>{c.u.nickname || "匿名"}</span>
+              <span style={{ fontSize: 12, color: "#6b5830", fontStyle: "italic" }}>：「{c.comment}」</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>)}
+  </div>);
+}
+
 // ── Main Dashboard ──────────────────────────────────────────
 export default function Dashboard() {
   const [parts, setParts] = useState(null);
@@ -302,12 +362,13 @@ export default function Dashboard() {
         ))}
       </div>
       <div style={{ display: "flex", gap: 4, marginBottom: 20, borderBottom: "1px solid rgba(0,0,0,.08)" }}>
-        {[{ id: "overview", label: "👥 測試者總覽" }, { id: "hotspots", label: "🔥 問題熱點" }, { id: "editor", label: "📝 編輯題目" }].map(t => (
+        {[{ id: "overview", label: "👥 測試者總覽" }, { id: "hotspots", label: "🔥 問題熱點" }, { id: "comments", label: "💬 留言" }, { id: "editor", label: "📝 編輯題目" }].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "10px 18px", border: "none", cursor: "pointer", background: tab === t.id ? "rgba(139,90,43,.1)" : "transparent", borderBottom: tab === t.id ? "3px solid #8B5A2B" : "3px solid transparent", fontSize: 14, fontWeight: tab === t.id ? 700 : 400, color: tab === t.id ? "#5B3A1F" : "#9a8a6e", borderRadius: "8px 8px 0 0" }}>{t.label}</button>
         ))}
       </div>
       {tab === "overview" && parts && <Overview users={users} parts={parts} onDelete={deleteUser} />}
       {tab === "hotspots" && parts && <Hotspots users={users} parts={parts} />}
+      {tab === "comments" && parts && <Comments users={users} parts={parts} />}
       {tab === "editor" && parts && <QuestionEditor parts={parts} onSave={d => setParts(d)} />}
     </div>
   </div>);
