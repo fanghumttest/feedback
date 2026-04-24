@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { dbGet, dbSet, dbDel } from "../firebase";
 import logoImg from '../Logo/Logo.png';
 
@@ -120,6 +120,22 @@ function QuestionEditor({parts, onSave}) {
   const [saved, setSaved] = useState(false);
   const [expandedPart, setExpandedPart] = useState(null);
   const [expandedSec, setExpandedSec] = useState(null);
+  const dragRef = useRef({ from: null, over: null });
+
+  const handleDragStart = (pi, si, ii) => { dragRef.current.from = { pi, si, ii }; };
+  const handleDragOver = (e, ii) => { e.preventDefault(); dragRef.current.over = ii; };
+  const handleDrop = (pi, si) => {
+    const { from, over } = dragRef.current;
+    if (!from || over === null || from.ii === over || from.pi !== pi || from.si !== si) return;
+    const d = JSON.parse(JSON.stringify(data));
+    const items = d[pi].sections[si].items;
+    const [moved] = items.splice(from.ii, 1);
+    items.splice(over, 0, moved);
+    const prefix = items[0]?.id.split('.').slice(0, -1).join('.');
+    items.forEach((item, idx) => { item.id = prefix ? `${prefix}.${idx + 1}` : `${idx + 1}`; });
+    setData(d);
+    dragRef.current = { from: null, over: null };
+  };
 
   const handleSave = async () => { setSaving(true); const ok = await saveQ(data); setSaving(false); if (ok) { setSaved(true); onSave(data); setTimeout(() => setSaved(false), 2000); } };
 
@@ -184,7 +200,13 @@ function QuestionEditor({parts, onSave}) {
                   </div>
                   <div style={{ marginBottom: 8 }}><label style={{ fontSize: 11, color: "#9a8a6e" }}>備註（選填）</label><input value={sec.note || ""} onChange={e => updateSection(pi, si, "note", e.target.value || undefined)} style={inp} placeholder="給測試者看的補充說明" /></div>
                   {sec.items.map((item, ii) => (
-                    <div key={ii} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                    <div key={ii} draggable
+                      onDragStart={() => handleDragStart(pi, si, ii)}
+                      onDragOver={(e) => handleDragOver(e, ii)}
+                      onDrop={() => handleDrop(pi, si)}
+                      onDragEnd={() => { dragRef.current = { from: null, over: null }; }}
+                      style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "center" }}>
+                      <span style={{ cursor: "grab", color: "#c0b8a8", fontSize: 15, userSelect: "none", padding: "0 2px" }}>⠿</span>
                       <input value={item.id} onChange={e => updateItem(pi, si, ii, "id", e.target.value)} style={{ ...inp, width: 60, textAlign: "center", fontFamily: "monospace", fontSize: 12 }} />
                       <input value={item.text} onChange={e => updateItem(pi, si, ii, "text", e.target.value)} style={{ ...inp, flex: 1 }} placeholder="題目內容" />
                       <button onClick={() => removeItem(pi, si, ii)} style={{ ...btn("rgba(196,80,40,.08)", "#c44028"), padding: "4px 8px" }}>✕</button>
