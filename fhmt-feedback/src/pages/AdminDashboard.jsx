@@ -147,8 +147,26 @@ function QuestionEditor({parts, onSave}) {
   const addSection = (pi) => { const d = JSON.parse(JSON.stringify(data)); d[pi].sections.push({ title: "新段落", items: [] }); setData(d); };
   const removeSection = (pi, si) => { const d = JSON.parse(JSON.stringify(data)); d[pi].sections.splice(si, 1); setData(d); };
   const addPart = () => { setData([...data, { id: `part${data.length + 1}`, title: `Part ${data.length + 1}`, subtitle: "新分頁", icon: "📋", description: "", sections: [{ title: "新段落", items: [] }] }]); };
-  const removePart = (pi) => { const d = [...data]; d.splice(pi, 1); setData(d); };
-  const movePart = (pi, dir) => { const d = [...data]; const ni = pi + dir; if (ni < 0 || ni >= d.length) return; [d[pi], d[ni]] = [d[ni], d[pi]]; setData(d); };
+  const renumberParts = (d) => {
+    d.forEach((part, idx) => {
+      const newNum = idx + 1;
+      const prevNum = parseInt(part.id.replace('part', ''));
+      if (prevNum !== newNum) {
+        part.id = `part${newNum}`;
+        part.title = `Part ${newNum}`;
+        part.sections.forEach(sec => {
+          sec.items.forEach(item => {
+            if (item.id.startsWith(`${prevNum}.`)) {
+              item.id = item.id.replace(`${prevNum}.`, `${newNum}.`);
+            }
+          });
+        });
+      }
+    });
+    return d;
+  };
+  const removePart = (pi) => { const d = JSON.parse(JSON.stringify(data)); d.splice(pi, 1); setData(renumberParts(d)); };
+  const movePart = (pi, dir) => { const d = JSON.parse(JSON.stringify(data)); const ni = pi + dir; if (ni < 0 || ni >= d.length) return; [d[pi], d[ni]] = [d[ni], d[pi]]; setData(renumberParts(d)); };
 
   const inp = { width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(0,0,0,.1)", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box", outline: "none", background: "rgba(255,255,255,.8)" };
   const btn = (bg, c) => ({ padding: "6px 12px", borderRadius: 8, border: "none", background: bg, color: c, cursor: "pointer", fontSize: 12, fontWeight: 600 });
