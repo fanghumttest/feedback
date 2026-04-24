@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { dbGet, dbSet, dbDel } from "../firebase";
+import logoImg from '../Logo/Logo.png';
 
 // ── 預設題目 ────────────────────────────────────────────────
 const DEFAULT_PARTS = [
@@ -348,7 +349,7 @@ export default function Dashboard() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" })); a.download = `feedback-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
   };
 
-  if (loading) return (<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)" }}><div style={{ textAlign: "center", color: "#9a8a6e" }}><div style={{ fontSize: 40, marginBottom: 12 }}>🏔️</div>載入中...</div></div>);
+  if (loading) return (<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)" }}><div style={{ textAlign: "center", color: "#9a8a6e" }}><img src={logoImg} alt="Logo" style={{ width: 56, height: 56, objectFit: "contain", marginBottom: 12 }} />載入中...</div></div>);
 
   const total = parts ? TOTAL(parts) : 0;
   const avgPct = users.length > 0 ? Math.round(users.reduce((t, u) => t + (u.answers ? Object.values(u.answers).filter(a => a?.status).length / total : 0), 0) / users.length * 100) : 0;
@@ -358,7 +359,7 @@ export default function Dashboard() {
   return (<div style={{ minHeight: "100vh", background: "linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)", fontFamily: "'Noto Sans TC',-apple-system,sans-serif" }}>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet" />
     <header style={{ position: "sticky", top: 0, zIndex: 100, padding: "14px 20px", background: "rgba(91,58,31,.95)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-      <span style={{ fontSize: 22 }}>🏔️</span><h1 style={{ margin: 0, fontSize: 18, color: "#fff", fontFamily: "'Noto Serif TC', serif", flex: 1 }}>方壺山道場 — 管理儀表板</h1>
+      <img src={logoImg} alt="Logo" style={{ width: 28, height: 28, objectFit: "contain" }} /><h1 style={{ margin: 0, fontSize: 18, color: "#fff", fontFamily: "'Noto Serif TC', serif", flex: 1 }}>方壺山道場 — 管理儀表板</h1>
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={init} style={{ padding: "7px 14px", borderRadius: 8, background: "rgba(255,255,255,.15)", color: "#fff", border: "1px solid rgba(255,255,255,.2)", cursor: "pointer", fontSize: 12 }}>🔄 重新整理</button>
         <button onClick={exportCSV} disabled={users.length === 0} style={{ padding: "7px 14px", borderRadius: 8, background: users.length > 0 ? "#6B8E4E" : "rgba(255,255,255,.1)", color: "#fff", border: "none", cursor: users.length > 0 ? "pointer" : "default", fontSize: 12 }}>📥 匯出 CSV</button>
