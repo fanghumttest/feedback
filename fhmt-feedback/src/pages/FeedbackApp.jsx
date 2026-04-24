@@ -25,7 +25,7 @@ function compressToDataUrl(file, maxW = 600, quality = 0.70) {
 }
 
 const SCALES = {
-  default: { options:["ok","weird","confused"], labels:{ok:"✅ 順",weird:"😕 怪",confused:"❓ 不會用"}, colors:{ok:"#5a8a3c",weird:"#c49000",confused:"#a05520"} },
+  default: { options:["ok","weird","confused"], labels:{ok:"✅ 通過",weird:"🤔 不確定",confused:"❌ 不通過"}, colors:{ok:"#5a8a3c",weird:"#c49000",confused:"#a05520"} },
   like:    { options:["ok","weird","confused"], labels:{ok:"😍 很好",weird:"🙂 還行",confused:"😕 怪怪的"}, colors:{ok:"#5a8a3c",weird:"#b0953a",confused:"#a05520"} },
   speed:   { options:["ok","weird","confused"], labels:{ok:"⚡ 很順",weird:"🙂 普通",confused:"🐌 有點卡"}, colors:{ok:"#5a8a3c",weird:"#b0953a",confused:"#a05520"} },
   easy:    { options:["ok","weird","confused"], labels:{ok:"👍 很直覺",weird:"🙂 還 OK",confused:"😕 卡住"}, colors:{ok:"#5a8a3c",weird:"#b0953a",confused:"#a05520"} },

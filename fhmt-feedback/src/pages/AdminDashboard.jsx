@@ -196,7 +196,7 @@ function QuestionEditor({parts, onSave}) {
                 {se && (<div style={{ padding: "0 14px 14px" }}>
                   <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                     <div style={{ flex: 1 }}><label style={{ fontSize: 11, color: "#9a8a6e" }}>段落標題</label><input value={sec.title} onChange={e => updateSection(pi, si, "title", e.target.value)} style={inp} /></div>
-                    <div style={{ flex: 1 }}><label style={{ fontSize: 11, color: "#9a8a6e" }}>評分量表</label><select value={sec.scale || "default"} onChange={e => updateSection(pi, si, "scale", e.target.value === "default" ? undefined : e.target.value)} style={{ ...inp, cursor: "pointer" }}><option value="default">順 / 怪 / 不會用</option><option value="like">很好 / 還行 / 怪怪的</option><option value="speed">很順 / 普通 / 有點卡</option><option value="easy">很直覺 / 還 OK / 卡住</option></select></div>
+                    <div style={{ flex: 1 }}><label style={{ fontSize: 11, color: "#9a8a6e" }}>評分量表</label><select value={sec.scale || "default"} onChange={e => updateSection(pi, si, "scale", e.target.value === "default" ? undefined : e.target.value)} style={{ ...inp, cursor: "pointer" }}><option value="default">通過 / 不確定 / 不通過</option><option value="like">很好 / 還行 / 怪怪的</option><option value="speed">很順 / 普通 / 有點卡</option><option value="easy">很直覺 / 還 OK / 卡住</option></select></div>
                   </div>
                   <div style={{ marginBottom: 8 }}><label style={{ fontSize: 11, color: "#9a8a6e" }}>備註（選填）</label><input value={sec.note || ""} onChange={e => updateSection(pi, si, "note", e.target.value || undefined)} style={inp} placeholder="給測試者看的補充說明" /></div>
                   {sec.items.map((item, ii) => (
@@ -324,7 +324,7 @@ function Comments({ users, parts }) {
               <span style={{ fontSize: 11, fontFamily: "monospace", color: "#9a8a6e", minWidth: 38 }}>{c.id}</span>
               <span style={{ flex: 1, fontSize: 12.5, color: "#3d3225" }}>{c.text}</span>
               <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 8, background: c.status === "confused" ? "rgba(160,85,32,.08)" : "rgba(196,144,0,.08)", color: c.status === "confused" ? "#a05520" : "#c49000", whiteSpace: "nowrap" }}>
-                {c.status === "confused" ? "❓不懂" : "😕怪"}
+                {c.status === "confused" ? "❌不通過" : "🤔不確定"}
               </span>
             </div>
             <div style={{ paddingLeft: 46 }}>
