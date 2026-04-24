@@ -3,7 +3,7 @@ import { dbGet, dbSet } from "../firebase";
 
 const safeId = s => s.replace(/[.#$[\]]/g, '_');
 
-function compressToDataUrl(file, maxW = 900, quality = 0.70) {
+function compressToDataUrl(file, maxW = 600, quality = 0.55) {
   return new Promise(resolve => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -14,7 +14,9 @@ function compressToDataUrl(file, maxW = 900, quality = 0.70) {
       canvas.width = Math.round(img.width * scale);
       canvas.height = Math.round(img.height * scale);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', quality));
+      const webp = canvas.toDataURL('image/webp', quality);
+      // 若瀏覽器不支援 WebP 則退回 JPEG
+      resolve(webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', quality));
     };
     img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
     img.src = url;
