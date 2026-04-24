@@ -349,7 +349,7 @@ export default function Dashboard() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" })); a.download = `feedback-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
   };
 
-  if (loading) return (<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)" }}><div style={{ textAlign: "center", color: "#9a8a6e" }}><img src={logoImg} alt="Logo" style={{ width: 56, height: 56, objectFit: "contain", marginBottom: 12 }} />載入中...</div></div>);
+  if (loading) return (<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)" }}><div style={{ textAlign: "center", color: "#9a8a6e" }}><img src={logoImg} alt="Logo" style={{ width: 56, height: 56, objectFit: "contain", display: "block", margin: "0 auto 12px" }} />載入中...</div></div>);
 
   const total = parts ? TOTAL(parts) : 0;
   const avgPct = users.length > 0 ? Math.round(users.reduce((t, u) => t + (u.answers ? Object.values(u.answers).filter(a => a?.status).length / total : 0), 0) / users.length * 100) : 0;
