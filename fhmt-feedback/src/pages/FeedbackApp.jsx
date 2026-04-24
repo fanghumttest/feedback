@@ -135,7 +135,7 @@ function PartView({part,answers,onAnswer,uid}) {
 }
 
 function Freeform({answers,onAnswer}) {
-  const fs=[{key:"best",title:"💚 最喜歡的地方",ph:"哪一個功能或體驗印象最好？"},{key:"improve",title:"💡 最想改善的地方",ph:"哪裡卡卡的、希望不一樣？"},{key:"bugs",title:"🐛 遇到的問題",ph:"按了沒反應、畫面跑掉……有遇到才填"},{key:"other",title:"💬 其他想說的話",ph:"任何想法都歡迎"}];
+  const fs=[{key:"other",title:"💬 其他想說的話",ph:"任何想法都歡迎"}];
   return(<div>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}><span style={{fontSize:28}}>💬</span><h2 style={{margin:0,fontSize:20,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>自由回饋</h2></div>
     <p style={{color:"#6b5830",fontSize:13.5,marginBottom:20}}>這是最後一段，你的心聲最重要。</p>
@@ -156,7 +156,7 @@ function Nav({parts,cur,onSelect,answers,freeform}) {
         <Ring progress={total>0?done/total:0}/><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:active?"#5B3A1F":"#7a6a55"}}>{p.icon} {p.subtitle}</div><div style={{fontSize:11,color:"#a09880"}}>{done}/{total}</div></div>
       </button>);})}
     <button onClick={()=>onSelect("freeform")} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:cur==="freeform"?"rgba(139,90,43,.1)":"transparent",border:"none",borderRadius:10,cursor:"pointer",textAlign:"left",borderLeft:cur==="freeform"?"3px solid #8B5A2B":"3px solid transparent"}}>
-      <span style={{fontSize:20,width:32,textAlign:"center"}}>💬</span><div><div style={{fontSize:13,fontWeight:600,color:cur==="freeform"?"#5B3A1F":"#7a6a55"}}>自由回饋</div><div style={{fontSize:11,color:"#a09880"}}>{fd}/4</div></div>
+      <span style={{fontSize:20,width:32,textAlign:"center"}}>💬</span><div><div style={{fontSize:13,fontWeight:600,color:cur==="freeform"?"#5B3A1F":"#7a6a55"}}>自由回饋</div><div style={{fontSize:11,color:"#a09880"}}>{fd}/1</div></div>
     </button>
   </nav>);
 }
@@ -190,6 +190,7 @@ export default function FeedbackApp() {
   const [cur,setCur]=useState(null);
   const [mobNav,setMobNav]=useState(false);
   const [saveStatus,setSaveStatus]=useState("");
+  const [submitted,setSubmitted]=useState(false);
   const saveT=useRef(null);
   const contentRef=useRef(null);
 
@@ -256,6 +257,16 @@ export default function FeedbackApp() {
   if(!authed)return <PasscodeGate onPass={()=>setAuthed(true)} />;
   if(!parts||parts.length===0)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e",maxWidth:400,padding:20}}><div style={{fontSize:40,marginBottom:12}}>📋</div><h2 style={{color:"#5B3A1F"}}>題目尚未設定</h2><p style={{fontSize:14,lineHeight:1.7}}>請聯絡管理員到 /admin 初始化題目。</p></div></div>);
   if(view==="welcome")return <Welcome onStart={handleStart} />;
+  if(submitted)return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",padding:20}}>
+      <div style={{textAlign:"center",maxWidth:400}}>
+        <img src={logoImg} alt="Logo" style={{width:72,height:72,objectFit:"contain",display:"block",margin:"0 auto 16px"}}/>
+        <div style={{fontSize:48,marginBottom:12}}>🙏</div>
+        <h2 style={{color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif",fontSize:24,margin:"0 0 12px"}}>感謝你的回饋！</h2>
+        <p style={{color:"#9a8a6e",fontSize:15,lineHeight:1.8,margin:0}}>你的意見已經記錄下來<br/>感謝你花時間測試方壺山道場。</p>
+      </div>
+    </div>
+  );
 
   const active=parts.find(p=>p.id===cur);
   const allIds=[...parts.map(p=>p.id),"freeform"];
@@ -282,7 +293,7 @@ export default function FeedbackApp() {
           <div style={{display:"flex",justifyContent:"space-between",marginTop:32,paddingTop:20,borderTop:"1px solid rgba(0,0,0,.08)"}}>
             {cur!==allIds[0]?<button onClick={()=>{const i=allIds.indexOf(cur);if(i>0){setCur(allIds[i-1]);scrollTop();}}} style={{padding:"10px 20px",borderRadius:10,background:"rgba(255,255,255,.6)",border:"1px solid rgba(0,0,0,.1)",cursor:"pointer",fontSize:13,color:"#6b5830"}}>← 上一段</button>:<div/>}
             {cur!=="freeform"?<button onClick={()=>{const i=allIds.indexOf(cur);if(i<allIds.length-1){setCur(allIds[i+1]);scrollTop();}}} style={{padding:"10px 20px",borderRadius:10,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",border:"none",cursor:"pointer",fontSize:13,color:"#fff",fontWeight:600}}>下一段 →</button>
-            :<button onClick={doSave} style={{padding:"10px 24px",borderRadius:10,background:"linear-gradient(135deg,#6B8E4E,#8aad6a)",border:"none",cursor:"pointer",fontSize:14,color:"#fff",fontWeight:700}}>🙏 完成送出</button>}
+            :<button onClick={async()=>{await doSave();setSubmitted(true);}} style={{padding:"10px 24px",borderRadius:10,background:"linear-gradient(135deg,#6B8E4E,#8aad6a)",border:"none",cursor:"pointer",fontSize:14,color:"#fff",fontWeight:700}}>🙏 完成送出</button>}
           </div>
         </main>
       </div>
