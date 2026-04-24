@@ -43,11 +43,11 @@ const DEFAULT_PARTS = [
 
 // ── Storage ─────────────────────────────────────────────────
 const safeId = s => s.replace(/[.#$[\]]/g, '_');
-async function loadQ()        { return await dbGet('kv/questions'); }
-async function saveQ(d)       { return await dbSet('kv/questions', d); }
+async function loadQ()        { const r = await dbGet('kv/questions'); return r ? JSON.parse(r) : null; }
+async function saveQ(d)       { return await dbSet('kv/questions', JSON.stringify(d)); }
 async function loadPasscode() { return await dbGet('kv/passcode'); }
 async function savePasscode(v){ if(!v||!v.trim()) return await dbDel('kv/passcode'); return await dbSet('kv/passcode', v.trim()); }
-async function loadAllUsers() { const data=await dbGet('kv/feedbacks'); if(!data) return []; return Object.values(data); }
+async function loadAllUsers() { const data=await dbGet('kv/feedbacks'); if(!data) return []; return Object.values(data).map(v=>typeof v==='string'?JSON.parse(v):v); }
 
 const TOTAL=(parts)=>parts.reduce((t,p)=>t+p.sections.reduce((s,sec)=>s+sec.items.length,0),0);
 function findItemText(parts,id){for(const p of parts)for(const s of p.sections)for(const i of s.items)if(i.id===id)return i.text;return id;}

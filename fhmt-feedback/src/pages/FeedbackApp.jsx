@@ -10,10 +10,10 @@ const SCALES = {
   easy:    { options:["ok","weird","confused"], labels:{ok:"👍 很直覺",weird:"🙂 還 OK",confused:"😕 卡住"}, colors:{ok:"#5a8a3c",weird:"#b0953a",confused:"#a05520"} },
 };
 
-async function loadQ()        { return await dbGet('kv/questions'); }
+async function loadQ()        { const r = await dbGet('kv/questions'); return r ? JSON.parse(r) : null; }
 async function loadPasscode() { return await dbGet('kv/passcode'); }
-async function saveF(uid, d)  { return await dbSet(`kv/feedbacks/${safeId(uid)}`, d); }
-async function loadF(uid)     { return await dbGet(`kv/feedbacks/${safeId(uid)}`); }
+async function saveF(uid, d)  { return await dbSet(`kv/feedbacks/${safeId(uid)}`, JSON.stringify(d)); }
+async function loadF(uid)     { const r = await dbGet(`kv/feedbacks/${safeId(uid)}`); return r ? JSON.parse(r) : null; }
 
 function PasscodeGate({ onPass }) {
   const [code, setCode] = useState("");
