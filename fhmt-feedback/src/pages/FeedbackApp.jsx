@@ -73,7 +73,7 @@ function Item({item,answer,scale,onAnswer,uid}) {
   const [uploading,setUploading]=useState(false);
   const fileRef=useRef(null);
   const hc=answer?.comment?.length>0;
-  const hasStatus=!!answer?.status;
+  const hasStatus=answer?.status==="weird"||answer?.status==="confused";
   const images=answer?.images||[];
 
   const handleUpload=async(e)=>{
