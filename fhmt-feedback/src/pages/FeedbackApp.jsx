@@ -161,19 +161,18 @@ function Nav({parts,cur,onSelect,answers,freeform}) {
 }
 
 function Welcome({onStart}) {
-  const [nick,setNick]=useState("");const [device,setDevice]=useState("");const [browser,setBrowser]=useState("");const [role,setRole]=useState("");
-  const ok=nick.trim().length>0;
+  const [nick,setNick]=useState("");const [device,setDevice]=useState("");const [browser,setBrowser]=useState("");
+  const ok=nick.trim().length>0&&device.length>0&&browser.length>0;
   const Btn=({items,val,set})=>(<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{items.map(d=><button key={d} onClick={()=>set(d)} style={{padding:"7px 16px",borderRadius:20,border:`2px solid ${val===d?"#8B5A2B":"rgba(0,0,0,.1)"}`,background:val===d?"#8B5A2B":"transparent",color:val===d?"#fff":"#6b5830",cursor:"pointer",fontSize:13,fontWeight:500}}>{d}</button>)}</div>);
   return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",padding:20}}>
     <div style={{width:"100%",maxWidth:480,padding:"40px 32px",borderRadius:20,background:"rgba(255,255,255,.75)",backdropFilter:"blur(20px)",boxShadow:"0 8px 40px rgba(91,58,31,.08)",border:"1px solid rgba(255,255,255,.6)"}}>
       <div style={{textAlign:"center",marginBottom:28}}><div style={{fontSize:40,marginBottom:8}}>🏔️</div><h1 style={{margin:0,fontSize:24,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>方壺山道場</h1><p style={{margin:"6px 0 0",fontSize:14,color:"#9a8a6e"}}>網站測試回饋系統</p></div>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
-        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:4}}>暱稱 <span style={{color:"#c49000"}}>*</span></label><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="隨意填，匿名也 OK" style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid rgba(0,0,0,.12)",fontSize:14,background:"rgba(255,255,255,.8)",boxSizing:"border-box",outline:"none"}}/></div>
-        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>使用裝置</label><Btn items={["電腦","手機","平板"]} val={device} set={setDevice}/></div>
-        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>瀏覽器</label><Btn items={["Chrome","Safari","Firefox","Edge","其他"]} val={browser} set={setBrowser}/></div>
-        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>你的身份</label><Btn items={["朋友","測試人員","專案相關方","其他"]} val={role} set={setRole}/></div>
+        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:4}}>暱稱 + 清信號 <span style={{color:"#c49000"}}>*</span></label><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="請填入你的暱稱與清信號" style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid rgba(0,0,0,.12)",fontSize:14,background:"rgba(255,255,255,.8)",boxSizing:"border-box",outline:"none"}}/></div>
+        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>使用裝置 <span style={{color:"#c49000"}}>*</span></label><Btn items={["電腦","手機","平板"]} val={device} set={setDevice}/></div>
+        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>瀏覽器 <span style={{color:"#c49000"}}>*</span></label><Btn items={["Chrome","Safari","Firefox","Edge","其他"]} val={browser} set={setBrowser}/></div>
       </div>
-      <button onClick={()=>ok&&onStart({nickname:nick.trim(),device,browser,role})} disabled={!ok} style={{width:"100%",marginTop:24,padding:"14px 0",borderRadius:12,background:ok?"linear-gradient(135deg,#8B5A2B,#A67B5B)":"#d5cfc3",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:ok?"pointer":"default",letterSpacing:1}}>開始填寫 →</button>
+      <button onClick={()=>ok&&onStart({nickname:nick.trim(),device,browser})} disabled={!ok} style={{width:"100%",marginTop:24,padding:"14px 0",borderRadius:12,background:ok?"linear-gradient(135deg,#8B5A2B,#A67B5B)":"#d5cfc3",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:ok?"pointer":"default",letterSpacing:1}}>開始填寫 →</button>
       <p style={{textAlign:"center",marginTop:16,fontSize:12,color:"#b8ad9c"}}>預計 40–60 分鐘，可分次完成</p>
     </div>
   </div>);
