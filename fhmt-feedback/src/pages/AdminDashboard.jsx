@@ -333,6 +333,7 @@ export default function Dashboard() {
   const [tab, setTab] = useState("overview");
 
   const init = async () => { setLoading(true); let q = await loadQ(); if (!q) { q = DEFAULT_PARTS; await saveQ(q); } setParts(q); setUsers(await loadAllUsers()); setLoading(false); };
+  useEffect(() => { document.title = "方壺山兌換Dashboard"; }, []);
   useEffect(() => { init(); }, []);
 
   const deleteUser = async (uid) => {

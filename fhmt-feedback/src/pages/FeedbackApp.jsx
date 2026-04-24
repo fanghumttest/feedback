@@ -193,6 +193,7 @@ export default function FeedbackApp() {
   const saveT=useRef(null);
   const contentRef=useRef(null);
 
+  useEffect(()=>{ document.title="方壺山捉蟲小隊Testing"; },[]);
   useEffect(()=>{(async()=>{
     const pc=await loadPasscode(); if(!pc) setAuthed(true);
     const q=await loadQ(); if(q){setParts(q);setCur(q[0]?.id||null);}
