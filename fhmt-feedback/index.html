@@ -9,17 +9,6 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Noto Sans TC', -apple-system, sans-serif; }
   </style>
-  <script>
-    (function() {
-      var redirect = sessionStorage.getItem('redirect');
-      if (redirect) {
-        sessionStorage.removeItem('redirect');
-        if (redirect !== location.pathname) {
-          window.history.replaceState(null, null, redirect);
-        }
-      }
-    })();
-  </script>
 </head>
 <body>
   <div id="root"></div>

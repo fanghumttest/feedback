@@ -6,7 +6,7 @@ import AdminDashboard from './pages/AdminDashboard';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <BrowserRouter basename="/feedback">
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<FeedbackApp />} />
         <Route path="/admin" element={<AdminDashboard />} />
