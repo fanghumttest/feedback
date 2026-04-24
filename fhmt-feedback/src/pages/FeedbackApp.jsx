@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { dbGet, dbSet } from "../firebase";
+import logoImg from '../Logo/Logo.png';
 
 const safeId = s => s.replace(/[.#$[\]]/g, '_');
 
@@ -51,7 +52,7 @@ function PasscodeGate({ onPass }) {
   return (
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",padding:20}}>
       <div style={{width:"100%",maxWidth:400,padding:"44px 32px",borderRadius:20,background:"rgba(255,255,255,.75)",backdropFilter:"blur(20px)",boxShadow:"0 8px 40px rgba(91,58,31,.08)",border:"1px solid rgba(255,255,255,.6)",textAlign:"center"}}>
-        <div style={{fontSize:40,marginBottom:12}}>🔑</div>
+        <img src={logoImg} alt="Logo" style={{width:60,height:60,objectFit:"contain",marginBottom:12}}/>
         <h1 style={{margin:"0 0 6px",fontSize:22,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>方壺山道場</h1>
         <p style={{margin:"0 0 24px",fontSize:14,color:"#9a8a6e"}}>請輸入通行碼以進入測試回饋系統</p>
         <input value={code} onChange={e=>setCode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()} placeholder="請輸入通行碼" type="password" autoFocus style={{width:"100%",padding:"12px 16px",borderRadius:12,border:`2px solid ${error?"#c44028":"rgba(0,0,0,.12)"}`,fontSize:15,textAlign:"center",background:"rgba(255,255,255,.8)",boxSizing:"border-box",outline:"none",letterSpacing:2,fontFamily:"monospace"}} />
@@ -166,7 +167,7 @@ function Welcome({onStart}) {
   const Btn=({items,val,set})=>(<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{items.map(d=><button key={d} onClick={()=>set(d)} style={{padding:"7px 16px",borderRadius:20,border:`2px solid ${val===d?"#8B5A2B":"rgba(0,0,0,.1)"}`,background:val===d?"#8B5A2B":"transparent",color:val===d?"#fff":"#6b5830",cursor:"pointer",fontSize:13,fontWeight:500}}>{d}</button>)}</div>);
   return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",padding:20}}>
     <div style={{width:"100%",maxWidth:480,padding:"40px 32px",borderRadius:20,background:"rgba(255,255,255,.75)",backdropFilter:"blur(20px)",boxShadow:"0 8px 40px rgba(91,58,31,.08)",border:"1px solid rgba(255,255,255,.6)"}}>
-      <div style={{textAlign:"center",marginBottom:28}}><div style={{fontSize:40,marginBottom:8}}>🏔️</div><h1 style={{margin:0,fontSize:24,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>方壺山道場</h1><p style={{margin:"6px 0 0",fontSize:14,color:"#9a8a6e"}}>網站測試回饋系統</p></div>
+      <div style={{textAlign:"center",marginBottom:28}}><img src={logoImg} alt="Logo" style={{width:72,height:72,objectFit:"contain",marginBottom:8,display:"block",margin:"0 auto 8px"}}/><h1 style={{margin:0,fontSize:24,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>方壺山道場</h1><p style={{margin:"6px 0 0",fontSize:14,color:"#9a8a6e"}}>網站測試回饋系統</p></div>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
         <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:4}}>暱稱 + 清信號 <span style={{color:"#c49000"}}>*</span></label><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="ex. 方壺山．清000" style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid rgba(0,0,0,.12)",fontSize:14,background:"rgba(255,255,255,.8)",boxSizing:"border-box",outline:"none"}}/></div>
         <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>使用裝置 <span style={{color:"#c49000"}}>*</span></label><Btn items={["電腦","手機","平板"]} val={device} set={setDevice}/></div>
@@ -228,7 +229,7 @@ export default function FeedbackApp() {
   const pct=totalItems>0?Math.round(totalDone/totalItems*100):0;
   const scrollTop=()=>{contentRef.current?.scrollTo({top:0,behavior:"smooth"});};
 
-  if(loading)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e"}}><div style={{fontSize:40,marginBottom:12}}>🏔️</div><p>載入中...</p></div></div>);
+  if(loading)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e"}}><img src={logoImg} alt="Logo" style={{width:56,height:56,objectFit:"contain",marginBottom:12}}/><p>載入中...</p></div></div>);
   if(!authed)return <PasscodeGate onPass={()=>setAuthed(true)} />;
   if(!parts||parts.length===0)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e",maxWidth:400,padding:20}}><div style={{fontSize:40,marginBottom:12}}>📋</div><h2 style={{color:"#5B3A1F"}}>題目尚未設定</h2><p style={{fontSize:14,lineHeight:1.7}}>請聯絡管理員到 /admin 初始化題目。</p></div></div>);
   if(view==="welcome")return <Welcome onStart={handleStart} />;
@@ -242,7 +243,7 @@ export default function FeedbackApp() {
       <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet" />
       <header style={{position:"sticky",top:0,zIndex:100,padding:"10px 16px",background:"rgba(247,240,227,.92)",backdropFilter:"blur(12px)",borderBottom:"1px solid rgba(0,0,0,.06)",display:"flex",alignItems:"center",gap:12}}>
         {isMob&&<button onClick={()=>setMobNav(!mobNav)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#8B5A2B",padding:4}}>☰</button>}
-        <span style={{fontSize:18}}>🏔️</span><span style={{fontSize:14,fontWeight:700,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>方壺山道場 測試回饋</span><div style={{flex:1}}/>
+        <img src={logoImg} alt="Logo" style={{width:24,height:24,objectFit:"contain"}}/><span style={{fontSize:14,fontWeight:700,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>方壺山道場 測試回饋</span><div style={{flex:1}}/>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           {saveStatus==="saving"&&<span style={{fontSize:11,color:"#c49000"}}>儲存中...</span>}
           {saveStatus==="saved"&&<span style={{fontSize:11,color:"#6B8E4E"}}>✓ 已儲存</span>}
