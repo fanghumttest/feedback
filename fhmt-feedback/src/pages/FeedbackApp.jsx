@@ -195,8 +195,22 @@ export default function FeedbackApp() {
 
   useEffect(()=>{ document.title="方壺山捉蟲小隊Testing"; },[]);
   useEffect(()=>{(async()=>{
-    const pc=await loadPasscode(); if(!pc) setAuthed(true);
+    const pc=await loadPasscode();
+    const wasAuthed=localStorage.getItem('fhmt_authed');
+    if(!pc||wasAuthed) setAuthed(true);
     const q=await loadQ(); if(q){setParts(q);setCur(q[0]?.id||null);}
+    // 自動恢復上次的填寫者
+    const saved=localStorage.getItem('fhmt_user');
+    if(saved){
+      try{
+        const info=JSON.parse(saved);
+        setUserInfo(info);
+        const u=`${info.nickname}-${info.device}-${info.browser}`;
+        const ex=await loadF(u);
+        if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});}
+        setView("form");
+      }catch(e){ localStorage.removeItem('fhmt_user'); }
+    }
     setLoading(false);
   })();},[]);
 
@@ -219,11 +233,19 @@ export default function FeedbackApp() {
   },[answers,freeform,doSave,uid]);
 
   const handleStart=async(info)=>{
+    localStorage.setItem('fhmt_user',JSON.stringify(info));
+    localStorage.setItem('fhmt_authed','1');
     setUserInfo(info);
     const u=`${info.nickname}-${info.device}-${info.browser}`;
     const ex=await loadF(u);
     if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});}
     setView("form");
+  };
+
+  const handleSwitch=()=>{
+    localStorage.removeItem('fhmt_user');
+    localStorage.removeItem('fhmt_authed');
+    setUserInfo(null);setAnswers({});setFreeform({});setView("welcome");
   };
 
   const totalDone=Object.values(answers).filter(a=>a?.status).length;
@@ -249,6 +271,7 @@ export default function FeedbackApp() {
           {saveStatus==="saving"&&<span style={{fontSize:11,color:"#c49000"}}>儲存中...</span>}
           {saveStatus==="saved"&&<span style={{fontSize:11,color:"#6B8E4E"}}>✓ 已儲存</span>}
           <div style={{padding:"4px 12px",borderRadius:16,background:pct>=100?"#6B8E4E":"rgba(139,90,43,.12)",fontSize:12,fontWeight:700,color:pct>=100?"#fff":"#8B5A2B"}}>{totalDone}/{totalItems}　{pct}%</div>
+          <button onClick={handleSwitch} style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"#a09880",padding:"2px 4px"}}>換裝置測試</button>
         </div>
       </header>
       <div style={{display:"flex",flex:1,minHeight:0}}>
