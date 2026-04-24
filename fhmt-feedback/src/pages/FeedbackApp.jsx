@@ -3,7 +3,7 @@ import { dbGet, dbSet } from "../firebase";
 
 const safeId = s => s.replace(/[.#$[\]]/g, '_');
 
-function compressToDataUrl(file, maxW = 600, quality = 0.55) {
+function compressToDataUrl(file, maxW = 600, quality = 0.70) {
   return new Promise(resolve => {
     const img = new Image();
     const url = URL.createObjectURL(file);
