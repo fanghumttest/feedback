@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { dbGet, dbSet, dbUpload } from "../firebase";
+import { dbGet, dbSet } from "../firebase";
 
 const safeId = s => s.replace(/[.#$[\]]/g, '_');
 
-function compressImage(file, maxW = 1200, quality = 0.78) {
+function compressToDataUrl(file, maxW = 900, quality = 0.70) {
   return new Promise(resolve => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -14,9 +14,9 @@ function compressImage(file, maxW = 1200, quality = 0.78) {
       canvas.width = Math.round(img.width * scale);
       canvas.height = Math.round(img.height * scale);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(blob => resolve(blob || file), 'image/jpeg', quality);
+      resolve(canvas.toDataURL('image/jpeg', quality));
     };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
     img.src = url;
   });
 }
@@ -79,14 +79,12 @@ function Item({item,answer,scale,onAnswer,uid}) {
     if(!files.length)return;
     e.target.value='';
     setUploading(true);
-    const urls=[];
+    const dataUrls=[];
     for(const f of files){
-      const blob=await compressImage(f);
-      const path=`images/${safeId(uid||'anon')}/${safeId(item.id)}/${Date.now()}`;
-      const url=await dbUpload(path,blob);
-      if(url)urls.push(url);
+      const du=await compressToDataUrl(f);
+      if(du)dataUrls.push(du);
     }
-    onAnswer({...answer,images:[...images,...urls]});
+    onAnswer({...answer,images:[...images,...dataUrls]});
     setUploading(false);
   };
 
