@@ -10,16 +10,15 @@
     body { font-family: 'Noto Sans TC', -apple-system, sans-serif; }
   </style>
   <script>
-    (function(l) {
-      if (l.search[1] === 'p') {
-        var decoded = l.search.slice(1).split('&').map(function(s) {
-          return s.replace(/~and~/g, '&');
-        }).join('?');
-        window.history.replaceState(null, null,
-          l.pathname.slice(0, -1) + decoded + l.hash
-        );
+    (function() {
+      var redirect = sessionStorage.getItem('redirect');
+      if (redirect) {
+        sessionStorage.removeItem('redirect');
+        if (redirect !== location.pathname) {
+          window.history.replaceState(null, null, redirect);
+        }
       }
-    }(window.location));
+    })();
   </script>
 </head>
 <body>
