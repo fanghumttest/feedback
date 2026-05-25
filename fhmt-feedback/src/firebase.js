@@ -2,13 +2,13 @@ import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, get, set, remove } from 'firebase/database';
 
 const app = initializeApp({
-  apiKey: "AIzaSyDYB580igT9-A5Dc8HF2IO-d4HsyRgTaH0",
-  authDomain: "fanghumts-testing.firebaseapp.com",
-  databaseURL: "https://fanghumts-testing-default-rtdb.firebaseio.com",
-  projectId: "fanghumts-testing",
-  storageBucket: "fanghumts-testing.firebasestorage.app",
-  messagingSenderId: "939309476083",
-  appId: "1:939309476083:web:80f3b0c1c84fdc8f492f86"
+  apiKey: "AIzaSyB6ZeSz4x5vAuZPgLnHQUqEwYt_k7zUpmk",
+  authDomain: "fanghumts-testing2.firebaseapp.com",
+  databaseURL: "https://fanghumts-testing2-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "fanghumts-testing2",
+  storageBucket: "fanghumts-testing2.firebasestorage.app",
+  messagingSenderId: "376104891391",
+  appId: "1:376104891391:web:793f5d65ad29aca4db2dca"
 });
 
 const db = getDatabase(app);

@@ -34,6 +34,7 @@ const SCALES = {
 const parseVal = r => { if (!r) return null; return typeof r === 'string' ? JSON.parse(r) : r; };
 async function loadQ()        { return parseVal(await dbGet('kv/questions')); }
 async function loadPasscode() { return await dbGet('kv/passcode'); }
+async function loadGroupCodes() { return parseVal(await dbGet('kv/groupCodes')); }
 async function saveF(uid, d)  { return await dbSet(`kv/feedbacks/${safeId(uid)}`, JSON.stringify(d)); }
 async function loadF(uid)     { return parseVal(await dbGet(`kv/feedbacks/${safeId(uid)}`)); }
 
@@ -44,9 +45,19 @@ function PasscodeGate({ onPass }) {
   const handleSubmit = async () => {
     if (!code.trim()) return;
     setChecking(true); setError("");
-    const correct = await loadPasscode();
-    if (!correct || code.trim() === correct) onPass();
-    else setError("通行碼不正確，請確認後再試");
+    const entered = code.trim();
+    const groupCodes = await loadGroupCodes();   // { A:"碼", B:"碼", ... } 或 null
+    const master = await loadPasscode();         // 舊版單一總通行碼（可看全部）或 null
+    // 1) 比對組別通行碼 → 只看到該組的關卡
+    if (groupCodes && typeof groupCodes === 'object') {
+      const hit = Object.entries(groupCodes).find(([, c]) => c && String(c).trim() === entered);
+      if (hit) { onPass(hit[0]); setChecking(false); return; }
+    }
+    // 2) 比對總通行碼 → 看得到全部關卡（管理方預覽用）
+    if (master && entered === String(master).trim()) { onPass(null); setChecking(false); return; }
+    // 3) 完全沒設定任何通行碼 → 開放進入
+    if ((!groupCodes || Object.keys(groupCodes).length === 0) && !master) { onPass(null); setChecking(false); return; }
+    setError("通行碼不正確，請確認後再試");
     setChecking(false);
   };
   return (
@@ -181,6 +192,7 @@ function Welcome({onStart}) {
 
 export default function FeedbackApp() {
   const [authed,setAuthed]=useState(false);
+  const [group,setGroup]=useState(null);   // 該測試員的組別（null = 看全部）
   const [view,setView]=useState("welcome");
   const [parts,setParts]=useState(null);
   const [loading,setLoading]=useState(true);
@@ -196,10 +208,16 @@ export default function FeedbackApp() {
 
   useEffect(()=>{ document.title="方壺山捉蟲小隊Testing"; },[]);
   useEffect(()=>{(async()=>{
+    const groupCodes=await loadGroupCodes();
     const pc=await loadPasscode();
+    const noCodes=(!groupCodes||Object.keys(groupCodes).length===0)&&!pc;
     const wasAuthed=localStorage.getItem('fhmt_authed');
-    if(!pc||wasAuthed) setAuthed(true);
-    const q=await loadQ(); if(q){setParts(q);setCur(q[0]?.id||null);}
+    if(wasAuthed||noCodes){
+      setAuthed(true);
+      const g=localStorage.getItem('fhmt_group');
+      setGroup(g?g:null);
+    }
+    const q=await loadQ(); if(q){setParts(q);}
     // 自動恢復上次的填寫者
     const saved=localStorage.getItem('fhmt_user');
     if(saved){
@@ -215,16 +233,28 @@ export default function FeedbackApp() {
     setLoading(false);
   })();},[]);
 
-  const totalItems=parts?parts.reduce((t,p)=>t+p.sections.reduce((s,sec)=>s+sec.items.length,0),0):0;
+  // 依組別過濾出這位測試員看得到的關卡
+  const visibleParts = parts ? (group ? parts.filter(p=>p.group===group) : parts) : [];
+
+  // 把目前選到的關卡（cur）校正到可見範圍內
+  useEffect(()=>{
+    if(!parts)return;
+    const vp = group ? parts.filter(p=>p.group===group) : parts;
+    if(vp.length===0)return;
+    if(cur==="freeform")return;
+    if(!cur||!vp.some(p=>p.id===cur)) setCur(vp[0].id);
+  },[parts,group,cur]);
+
+  const totalItems=visibleParts.reduce((t,p)=>t+p.sections.reduce((s,sec)=>s+sec.items.length,0),0);
   const uid=userInfo?`${userInfo.nickname}-${userInfo.device}-${userInfo.browser}`:null;
 
   const doSave=useCallback(async()=>{
     if(!uid)return;
     setSaveStatus("saving");
-    await saveF(uid,{...userInfo,answers,freeform,updatedAt:new Date().toISOString(),odName:uid});
+    await saveF(uid,{...userInfo,group,answers,freeform,updatedAt:new Date().toISOString(),odName:uid});
     setSaveStatus("saved");
     setTimeout(()=>setSaveStatus(""),2000);
-  },[uid,userInfo,answers,freeform]);
+  },[uid,userInfo,group,answers,freeform]);
 
   useEffect(()=>{
     if(!uid)return;
@@ -254,8 +284,9 @@ export default function FeedbackApp() {
   const scrollTop=()=>{contentRef.current?.scrollTo({top:0,behavior:"smooth"});};
 
   if(loading)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e"}}><img src={logoImg} alt="Logo" style={{width:56,height:56,objectFit:"contain",marginBottom:12}}/><p>載入中...</p></div></div>);
-  if(!authed)return <PasscodeGate onPass={()=>setAuthed(true)} />;
+  if(!authed)return <PasscodeGate onPass={(g)=>{ setGroup(g||null); setAuthed(true); localStorage.setItem('fhmt_authed','1'); localStorage.setItem('fhmt_group', g||''); }} />;
   if(!parts||parts.length===0)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e",maxWidth:400,padding:20}}><div style={{fontSize:40,marginBottom:12}}>📋</div><h2 style={{color:"#5B3A1F"}}>題目尚未設定</h2><p style={{fontSize:14,lineHeight:1.7}}>請聯絡管理員到 /admin 初始化題目。</p></div></div>);
+  if(visibleParts.length===0)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e",maxWidth:400,padding:20}}><div style={{fontSize:40,marginBottom:12}}>🔑</div><h2 style={{color:"#5B3A1F"}}>這組通行碼目前沒有題目</h2><p style={{fontSize:14,lineHeight:1.7}}>請聯絡管理方確認你的通行碼，或稍後再試。</p><button onClick={()=>{localStorage.removeItem('fhmt_authed');localStorage.removeItem('fhmt_group');location.reload();}} style={{marginTop:16,padding:"10px 20px",borderRadius:10,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",color:"#fff",border:"none",cursor:"pointer",fontSize:13,fontWeight:600}}>重新輸入通行碼</button></div></div>);
   if(view==="welcome")return <Welcome onStart={handleStart} />;
   if(submitted)return(
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",padding:20}}>
@@ -268,8 +299,8 @@ export default function FeedbackApp() {
     </div>
   );
 
-  const active=parts.find(p=>p.id===cur);
-  const allIds=[...parts.map(p=>p.id),"freeform"];
+  const active=visibleParts.find(p=>p.id===cur);
+  const allIds=[...visibleParts.map(p=>p.id),"freeform"];
   const isMob=typeof window!=="undefined"&&window.innerWidth<768;
 
   return(
@@ -286,8 +317,8 @@ export default function FeedbackApp() {
         </div>
       </header>
       <div style={{display:"flex",flex:1,minHeight:0}}>
-        {!isMob&&<aside style={{width:240,minWidth:240,borderRight:"1px solid rgba(0,0,0,.06)",background:"rgba(255,255,255,.4)",overflowY:"auto",padding:"8px 6px"}}><Nav parts={parts} cur={cur} onSelect={id=>{setCur(id);scrollTop();}} answers={answers} freeform={freeform}/></aside>}
-        {mobNav&&<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:200,background:"rgba(0,0,0,.3)",backdropFilter:"blur(4px)"}} onClick={()=>setMobNav(false)}><div style={{width:280,height:"100%",background:"rgba(247,240,227,.98)",overflowY:"auto",padding:"60px 10px 20px",boxShadow:"4px 0 20px rgba(0,0,0,.1)"}} onClick={e=>e.stopPropagation()}><Nav parts={parts} cur={cur} onSelect={id=>{setCur(id);setMobNav(false);scrollTop();}} answers={answers} freeform={freeform}/></div></div>}
+        {!isMob&&<aside style={{width:240,minWidth:240,borderRight:"1px solid rgba(0,0,0,.06)",background:"rgba(255,255,255,.4)",overflowY:"auto",padding:"8px 6px"}}><Nav parts={visibleParts} cur={cur} onSelect={id=>{setCur(id);scrollTop();}} answers={answers} freeform={freeform}/></aside>}
+        {mobNav&&<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:200,background:"rgba(0,0,0,.3)",backdropFilter:"blur(4px)"}} onClick={()=>setMobNav(false)}><div style={{width:280,height:"100%",background:"rgba(247,240,227,.98)",overflowY:"auto",padding:"60px 10px 20px",boxShadow:"4px 0 20px rgba(0,0,0,.1)"}} onClick={e=>e.stopPropagation()}><Nav parts={visibleParts} cur={cur} onSelect={id=>{setCur(id);setMobNav(false);scrollTop();}} answers={answers} freeform={freeform}/></div></div>}
         <main ref={contentRef} style={{flex:1,overflowY:"auto",padding:"24px 20px 60px",maxWidth:800,margin:"0 auto",width:"100%"}}>
           {cur==="freeform"?<Freeform answers={freeform} onAnswer={(k,v)=>setFreeform(p=>({...p,[k]:v}))}/>:active?<PartView part={active} answers={answers} onAnswer={(id,a)=>setAnswers(p=>({...p,[id]:a}))} uid={uid}/>:null}
           <div style={{display:"flex",justifyContent:"space-between",marginTop:32,paddingTop:20,borderTop:"1px solid rgba(0,0,0,.08)"}}>
