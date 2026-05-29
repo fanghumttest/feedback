@@ -13,16 +13,23 @@ const app = initializeApp({
 
 const db = getDatabase(app);
 
+// ── 開發 / 正式 資料隔離 ───────────────────────────────────
+// 本機開發 (npm run dev) → 資料寫到 kv/_dev/，跟線上正式資料完全分開。
+// 正式建置 (npm run build，部署用) → 走 kv/，照常存正式資料。
+// 自動切換，不用手動設定；kv/_dev 在 kv 底下，現有安全規則即可涵蓋。
+const NS = import.meta.env.DEV ? 'kv/_dev' : 'kv';
+const nsPath = (p) => (p === 'kv' || p.startsWith('kv/')) ? NS + p.slice(2) : p;
+
 export const dbGet = async (path) => {
   try {
-    const snap = await get(ref(db, path));
+    const snap = await get(ref(db, nsPath(path)));
     return snap.exists() ? snap.val() : null;
   } catch { return null; }
 };
 
 export const dbSet = async (path, value) => {
   try {
-    await set(ref(db, path), value);
+    await set(ref(db, nsPath(path)), value);
     return true;
   } catch (e) {
     console.error('dbSet error:', e);
@@ -32,7 +39,7 @@ export const dbSet = async (path, value) => {
 
 export const dbDel = async (path) => {
   try {
-    await remove(ref(db, path));
+    await remove(ref(db, nsPath(path)));
     return true;
   } catch { return false; }
 };

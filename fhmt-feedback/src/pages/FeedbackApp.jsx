@@ -25,7 +25,7 @@ function compressToDataUrl(file, maxW = 600, quality = 0.70) {
 }
 
 const SCALES = {
-  default: { options:["ok","weird","confused"], labels:{ok:"✅ 通過",weird:"🤔 不確定",confused:"❌ 不通過"}, colors:{ok:"#5a8a3c",weird:"#c49000",confused:"#a05520"} },
+  default: { options:["ok","confused"], labels:{ok:"✅ 通過",confused:"❌ 不通過"}, colors:{ok:"#5a8a3c",confused:"#a05520"} },
   like:    { options:["ok","weird","confused"], labels:{ok:"😍 很好",weird:"🙂 還行",confused:"😕 怪怪的"}, colors:{ok:"#5a8a3c",weird:"#b0953a",confused:"#a05520"} },
   speed:   { options:["ok","weird","confused"], labels:{ok:"⚡ 很順",weird:"🙂 普通",confused:"🐌 有點卡"}, colors:{ok:"#5a8a3c",weird:"#b0953a",confused:"#a05520"} },
   easy:    { options:["ok","weird","confused"], labels:{ok:"👍 很直覺",weird:"🙂 還 OK",confused:"😕 卡住"}, colors:{ok:"#5a8a3c",weird:"#b0953a",confused:"#a05520"} },
@@ -35,6 +35,7 @@ const parseVal = r => { if (!r) return null; return typeof r === 'string' ? JSON
 async function loadQ()        { return parseVal(await dbGet('kv/questions')); }
 async function loadPasscode() { return await dbGet('kv/passcode'); }
 async function loadGroupCodes() { return parseVal(await dbGet('kv/groupCodes')); }
+async function loadFormStatus() { return parseVal(await dbGet('kv/formStatus')); }
 async function saveF(uid, d)  { return await dbSet(`kv/feedbacks/${safeId(uid)}`, JSON.stringify(d)); }
 async function loadF(uid)     { return parseVal(await dbGet(`kv/feedbacks/${safeId(uid)}`)); }
 
@@ -80,12 +81,17 @@ function Chip({value,scale="default",onChange}) {
   return (<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{s.options.map(o=>{const a=value===o;return(<button key={o} onClick={()=>onChange(a?null:o)} style={{padding:"6px 14px",borderRadius:20,border:`2px solid ${s.colors[o]}`,background:a?s.colors[o]:"transparent",color:a?"#fff":s.colors[o],fontWeight:600,fontSize:13,cursor:"pointer",transition:"all .15s",opacity:value&&!a?0.45:1,whiteSpace:"nowrap"}}>{s.labels[o]}</button>);})}</div>);
 }
 
-function Item({item,answer,scale,onAnswer,uid}) {
+function Item({item,answer,scale,onAnswer,uid,submitAttempted}) {
   const [exp,setExp]=useState(false);
   const [uploading,setUploading]=useState(false);
   const fileRef=useRef(null);
-  const hc=answer?.comment?.length>0;
-  const hasStatus=answer?.status==="weird"||answer?.status==="confused";
+  const status=answer?.status;
+  const hc=answer?.comment?.trim().length>0;
+  const needReason=status==="confused";          // 最負面選項 → 必填原因
+  const hasStatus=status==="weird"||status==="confused";
+  const showComment=exp||needReason;             // 不通過 → 原因框自動展開
+  const missingReason=needReason&&!hc;
+  const showErr=missingReason&&submitAttempted;   // 按過送出才轉紅
   const images=answer?.images||[];
 
   const handleUpload=async(e)=>{
@@ -104,15 +110,17 @@ function Item({item,answer,scale,onAnswer,uid}) {
 
   const removeImg=(idx)=>onAnswer({...answer,images:images.filter((_,i)=>i!==idx)});
 
-  return(<div style={{padding:"14px 16px",borderRadius:10,background:answer?.status==="weird"?"rgba(196,144,0,.07)":answer?.status==="confused"?"rgba(160,85,32,.07)":"rgba(255,255,255,.5)",border:`1px solid ${answer?.status==="weird"?"rgba(196,144,0,.25)":answer?.status==="confused"?"rgba(160,85,32,.2)":"rgba(0,0,0,.06)"}`,transition:"all .2s"}}>
+  return(<div id={"item-"+item.id} style={{padding:"14px 16px",borderRadius:10,background:showErr?"rgba(196,64,40,.08)":status==="weird"?"rgba(196,144,0,.07)":status==="confused"?"rgba(160,85,32,.07)":"rgba(255,255,255,.5)",border:`1px solid ${showErr?"#c44028":status==="weird"?"rgba(196,144,0,.25)":status==="confused"?"rgba(160,85,32,.2)":"rgba(0,0,0,.06)"}`,transition:"all .2s"}}>
     <div style={{display:"flex",gap:10,alignItems:"flex-start",flexWrap:"wrap"}}>
       <span style={{fontSize:12,color:"#9a8a6e",fontWeight:700,minWidth:36,paddingTop:2,fontFamily:"monospace"}}>{item.id}</span>
       <div style={{flex:1,minWidth:200}}><p style={{margin:0,fontSize:14,lineHeight:1.6,color:"#3d3225"}}>{item.text}</p></div>
       <Chip value={answer?.status} scale={scale} onChange={v=>onAnswer({...answer,status:v})} />
     </div>
     {hasStatus&&(<div style={{marginTop:10}}>
-      <button onClick={()=>setExp(!exp)} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:hc?"#8B5A2B":"#a09880",display:"flex",alignItems:"center",gap:4,padding:"2px 0"}}><span>{exp?"▾":"▸"}</span><span>{hc?"✎ 已留言":"想說的話..."}</span></button>
-      {exp&&<textarea value={answer?.comment||""} onChange={e=>onAnswer({...answer,comment:e.target.value})} placeholder="有什麼想說的？" style={{width:"100%",marginTop:6,padding:10,borderRadius:8,fontSize:13,border:"1px solid rgba(0,0,0,.1)",background:"rgba(255,255,255,.8)",resize:"vertical",minHeight:60,fontFamily:"inherit",lineHeight:1.5,boxSizing:"border-box",outline:"none"}} />}
+      {needReason
+        ? <div style={{fontSize:12.5,fontWeight:700,color:missingReason?(showErr?"#c44028":"#b5651d"):"#5a8a3c",padding:"2px 0"}}>{missingReason?"⚠ 請說明哪裡不通過（必填）":"✓ 已填寫原因"}</div>
+        : <button onClick={()=>setExp(!exp)} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:hc?"#8B5A2B":"#a09880",display:"flex",alignItems:"center",gap:4,padding:"2px 0"}}><span>{exp?"▾":"▸"}</span><span>{hc?"✎ 已留言":"想說的話...（可不填）"}</span></button>}
+      {showComment&&<textarea value={answer?.comment||""} onChange={e=>onAnswer({...answer,comment:e.target.value})} placeholder={needReason?"請簡單說明哪裡不通過、你怎麼操作的…":"有什麼想說的？"} style={{width:"100%",marginTop:6,padding:10,borderRadius:8,fontSize:13,border:`1px solid ${showErr?"#c44028":"rgba(0,0,0,.1)"}`,background:"rgba(255,255,255,.8)",resize:"vertical",minHeight:60,fontFamily:"inherit",lineHeight:1.5,boxSizing:"border-box",outline:"none"}} />}
       <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8,flexWrap:"wrap"}}>
         {images.map((url,i)=>(
           <div key={i} style={{position:"relative"}}>
@@ -131,16 +139,16 @@ function Item({item,answer,scale,onAnswer,uid}) {
   </div>);
 }
 
-function PartView({part,answers,onAnswer,uid}) {
+function PartView({part,answers,onAnswer,uid,submitAttempted}) {
   return(<div>
     <div style={{marginBottom:24}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}><span style={{fontSize:28}}>{part.icon}</span><h2 style={{margin:0,fontSize:20,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>{part.title}　{part.subtitle}</h2></div>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}><span style={{fontSize:28}}>{part.icon}</span><h2 style={{margin:0,fontSize:20,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>{part.subtitle}</h2></div>
       {part.description&&<div style={{padding:"12px 16px",borderRadius:10,background:"rgba(255,249,230,.8)",border:"1px solid rgba(212,160,23,.2)",fontSize:13,color:"#6b5830",lineHeight:1.7,whiteSpace:"pre-line",marginTop:8}}>{part.description}</div>}
     </div>
     {part.sections.map((sec,si)=>(<div key={si} style={{marginBottom:28}}>
       <h3 style={{margin:"0 0 6px",fontSize:15,color:"#6B4E2E",borderLeft:"3px solid #C89B7B",paddingLeft:10}}>{sec.title}</h3>
       {sec.note&&<p style={{margin:"0 0 10px",fontSize:12.5,color:"#9a8a6e",lineHeight:1.6,paddingLeft:14}}>{sec.note}</p>}
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>{sec.items.map(item=><Item key={item.id} item={item} answer={answers[item.id]} scale={sec.scale||"default"} onAnswer={a=>onAnswer(item.id,a)} uid={uid}/>)}</div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>{sec.items.map(item=><Item key={item.id} item={item} answer={answers[item.id]} scale={sec.scale||"default"} onAnswer={a=>onAnswer(item.id,a)} uid={uid} submitAttempted={submitAttempted}/>)}</div>
     </div>))}
   </div>);
 }
@@ -154,14 +162,41 @@ function Freeform({answers,onAnswer}) {
   </div>);
 }
 
+function RepliesView({answers,parts}) {
+  const items=[];
+  for(const p of parts)for(const sec of p.sections)for(const it of sec.items){const a=answers[it.id];if(a?.reply&&String(a.reply).trim())items.push({id:it.id,text:it.text,part:p,a});}
+  return(<div>
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}><span style={{fontSize:28}}>📣</span><h2 style={{margin:0,fontSize:20,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>管理員回覆</h2></div>
+    <p style={{color:"#6b5830",fontSize:13.5,marginBottom:20}}>謝謝你的回報！下面是管理員針對你回報項目的回覆。</p>
+    {items.length===0?<p style={{color:"#9a8a6e",fontSize:14}}>目前還沒有回覆，過幾天再回來看看 🙏</p>
+    :<div style={{display:"flex",flexDirection:"column",gap:12}}>{items.map(({id,text,part,a})=>(
+      <div key={id} style={{padding:"14px 16px",borderRadius:12,background:"rgba(255,255,255,.6)",border:"1px solid rgba(0,0,0,.08)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+          <span style={{fontSize:11.5,fontWeight:700,color:"#8B5A2B",background:"rgba(139,90,43,.1)",padding:"3px 11px",borderRadius:20}}>{part.icon} {part.subtitle}</span>
+          <span style={{fontSize:11.5,fontFamily:"monospace",color:"#9a8a6e"}}>#{id}</span>
+        </div>
+        <div style={{fontSize:14,lineHeight:1.6,color:"#3d3225",fontWeight:500}}>{text}</div>
+        {a.comment&&<div style={{marginTop:8,fontSize:13,lineHeight:1.6,color:"#6b5830",fontStyle:"italic"}}>你的回報：「{a.comment}」</div>}
+        <div style={{marginTop:10,padding:"10px 13px",borderRadius:8,background:"rgba(107,142,78,.08)",borderLeft:"3px solid #6B8E4E"}}>
+          <div style={{fontSize:11.5,fontWeight:700,color:"#5a8a3c",marginBottom:4}}>📣 管理員回覆</div>
+          <div style={{fontSize:14,lineHeight:1.65,color:"#3d4a2e",whiteSpace:"pre-wrap"}}>{a.reply}</div>
+        </div>
+      </div>
+    ))}</div>}
+  </div>);
+}
+
 function Ring({progress,size=32,stroke=2.5}) {
   const r=(size-stroke)/2,c=2*Math.PI*r;
   return(<svg width={size} height={size} style={{transform:"rotate(-90deg)"}}><circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(0,0,0,.08)" strokeWidth={stroke}/><circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#6B8E4E" strokeWidth={stroke} strokeDasharray={c} strokeDashoffset={c*(1-progress)} strokeLinecap="round" style={{transition:"stroke-dashoffset .4s"}}/></svg>);
 }
 
-function Nav({parts,cur,onSelect,answers,freeform}) {
+function Nav({parts,cur,onSelect,answers,freeform,repliesCount}) {
   const fd=freeform?Object.values(freeform).filter(v=>v?.length>0).length:0;
   return(<nav style={{display:"flex",flexDirection:"column",gap:4,padding:"6px 0"}}>
+    {repliesCount>0&&<button onClick={()=>onSelect("replies")} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:cur==="replies"?"rgba(107,142,78,.15)":"rgba(107,142,78,.06)",border:"none",borderRadius:10,cursor:"pointer",textAlign:"left",borderLeft:cur==="replies"?"3px solid #6B8E4E":"3px solid transparent"}}>
+      <span style={{fontSize:20,width:32,textAlign:"center"}}>📣</span><div><div style={{fontSize:13,fontWeight:700,color:"#5a8a3c"}}>管理員回覆</div><div style={{fontSize:11,color:"#a09880"}}>{repliesCount} 則</div></div>
+    </button>}
     {parts.map(p=>{const total=p.sections.reduce((t,s)=>t+s.items.length,0);const done=p.sections.reduce((t,s)=>t+s.items.filter(i=>answers[i.id]?.status).length,0);const active=cur===p.id;return(
       <button key={p.id} onClick={()=>onSelect(p.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:active?"rgba(139,90,43,.1)":"transparent",border:"none",borderRadius:10,cursor:"pointer",textAlign:"left",borderLeft:active?"3px solid #8B5A2B":"3px solid transparent"}}>
         <Ring progress={total>0?done/total:0}/><div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:active?"#5B3A1F":"#7a6a55"}}>{p.icon} {p.subtitle}</div><div style={{fontSize:11,color:"#a09880"}}>{done}/{total}</div></div>
@@ -172,16 +207,16 @@ function Nav({parts,cur,onSelect,answers,freeform}) {
   </nav>);
 }
 
-function Welcome({onStart}) {
-  const [nick,setNick]=useState("");const [device,setDevice]=useState("");const [browser,setBrowser]=useState("");
+function Welcome({onStart,initialNick}) {
+  const [nick,setNick]=useState(initialNick||"");const [device,setDevice]=useState("");const [browser,setBrowser]=useState("");
   const ok=nick.trim().length>0&&device.length>0&&browser.length>0;
   const Btn=({items,val,set})=>(<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{items.map(d=><button key={d} onClick={()=>set(d)} style={{padding:"7px 16px",borderRadius:20,border:`2px solid ${val===d?"#8B5A2B":"rgba(0,0,0,.1)"}`,background:val===d?"#8B5A2B":"transparent",color:val===d?"#fff":"#6b5830",cursor:"pointer",fontSize:13,fontWeight:500}}>{d}</button>)}</div>);
   return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",padding:20}}>
     <div style={{width:"100%",maxWidth:480,padding:"40px 32px",borderRadius:20,background:"rgba(255,255,255,.75)",backdropFilter:"blur(20px)",boxShadow:"0 8px 40px rgba(91,58,31,.08)",border:"1px solid rgba(255,255,255,.6)"}}>
       <div style={{textAlign:"center",marginBottom:28}}><img src={logoImg} alt="Logo" style={{width:72,height:72,objectFit:"contain",marginBottom:8,display:"block",margin:"0 auto 8px"}}/><h1 style={{margin:0,fontSize:24,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>方壺山道場</h1><p style={{margin:"6px 0 0",fontSize:14,color:"#9a8a6e"}}>網站測試回饋系統</p></div>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
-        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:4}}>暱稱 + 清信號 <span style={{color:"#c49000"}}>*</span></label><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="ex. 方壺山．清000" style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid rgba(0,0,0,.12)",fontSize:14,background:"rgba(255,255,255,.8)",boxSizing:"border-box",outline:"none"}}/></div>
-        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>使用裝置 <span style={{color:"#c49000"}}>*</span></label><Btn items={["電腦","手機","平板"]} val={device} set={setDevice}/></div>
+        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:4}}>清信號 <span style={{color:"#c49000"}}>*</span><span style={{fontWeight:400,color:"#9a8a6e",fontSize:12}}>（換裝置請填一樣的清信號）</span></label><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="ex. 清000" style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid rgba(0,0,0,.12)",fontSize:14,background:"rgba(255,255,255,.8)",boxSizing:"border-box",outline:"none"}}/></div>
+        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>使用裝置 <span style={{color:"#c49000"}}>*</span><span style={{fontWeight:400,color:"#9a8a6e",fontSize:12}}>（本次「電腦」和「手機或平板」都要測）</span></label><Btn items={["電腦","手機","平板"]} val={device} set={setDevice}/></div>
         <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>瀏覽器 <span style={{color:"#c49000"}}>*</span></label><Btn items={["Chrome","Safari","Firefox","Edge","其他"]} val={browser} set={setBrowser}/></div>
       </div>
       <button onClick={()=>ok&&onStart({nickname:nick.trim(),device,browser})} disabled={!ok} style={{width:"100%",marginTop:24,padding:"14px 0",borderRadius:12,background:ok?"linear-gradient(135deg,#8B5A2B,#A67B5B)":"#d5cfc3",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:ok?"pointer":"default",letterSpacing:1}}>開始填寫 →</button>
@@ -203,11 +238,20 @@ export default function FeedbackApp() {
   const [mobNav,setMobNav]=useState(false);
   const [saveStatus,setSaveStatus]=useState("");
   const [submitted,setSubmitted]=useState(false);
+  const [submitAttempted,setSubmitAttempted]=useState(false);
+  const [fontScale,setFontScale]=useState(1);
+  const [formClosed,setFormClosed]=useState(false);
+  const [closedShowReplies,setClosedShowReplies]=useState(false);
+  const [coverage,setCoverage]=useState(null);   // 此清信號的裝置涵蓋 {pc,mobile}
+  const [prefillNick,setPrefillNick]=useState("");
   const saveT=useRef(null);
   const contentRef=useRef(null);
+  const activeSecRef=useRef(0);   // 累計「實際停留在頁面」的秒數
 
-  useEffect(()=>{ document.title="方壺山捉蟲小隊Testing"; },[]);
+  useEffect(()=>{ document.title="方壺山捉蟲小隊Testing"; const f=parseFloat(localStorage.getItem('fhmt_fontscale')); if(f>0) setFontScale(f); },[]);
   useEffect(()=>{(async()=>{
+    const fs=await loadFormStatus();
+    setFormClosed(fs ? (fs.open===false || (fs.deadline && Date.now()>=new Date(fs.deadline).getTime())) : false);
     const groupCodes=await loadGroupCodes();
     const pc=await loadPasscode();
     const noCodes=(!groupCodes||Object.keys(groupCodes).length===0)&&!pc;
@@ -226,8 +270,8 @@ export default function FeedbackApp() {
         setUserInfo(info);
         const u=`${info.nickname}-${info.device}-${info.browser}`;
         const ex=await loadF(u);
-        if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});}
-        setView("form");
+        if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});activeSecRef.current=ex.activeSec||0;}
+        setView("form");if(ex&&Object.values(ex.answers||{}).some(a=>a?.reply&&String(a.reply).trim()))setCur("replies");
       }catch(e){ localStorage.removeItem('fhmt_user'); }
     }
     setLoading(false);
@@ -241,7 +285,7 @@ export default function FeedbackApp() {
     if(!parts)return;
     const vp = group ? parts.filter(p=>p.group===group) : parts;
     if(vp.length===0)return;
-    if(cur==="freeform")return;
+    if(cur==="freeform"||cur==="replies")return;
     if(!cur||!vp.some(p=>p.id===cur)) setCur(vp[0].id);
   },[parts,group,cur]);
 
@@ -251,7 +295,7 @@ export default function FeedbackApp() {
   const doSave=useCallback(async()=>{
     if(!uid)return;
     setSaveStatus("saving");
-    await saveF(uid,{...userInfo,group,answers,freeform,updatedAt:new Date().toISOString(),odName:uid});
+    await saveF(uid,{...userInfo,group,activeSec:activeSecRef.current,answers,freeform,updatedAt:new Date().toISOString(),odName:uid});
     setSaveStatus("saved");
     setTimeout(()=>setSaveStatus(""),2000);
   },[uid,userInfo,group,answers,freeform]);
@@ -263,44 +307,91 @@ export default function FeedbackApp() {
     return()=>{if(saveT.current)clearTimeout(saveT.current);};
   },[answers,freeform,doSave,uid]);
 
+  // 送出後讀取此清信號的裝置涵蓋（電腦 / 手機平板 有沒有都測過）
+  useEffect(()=>{
+    if(!submitted||!userInfo)return;
+    (async()=>{ const c=parseVal(await dbGet(`kv/personDevices/${safeId(userInfo.nickname)}`)); setCoverage(c||{}); })();
+  },[submitted,userInfo]);
+
+  // 實際操作時間：只在「正在填寫且分頁可見」時，每 5 秒累加 5 秒
+  useEffect(()=>{
+    if(view!=="form")return;
+    const t=setInterval(()=>{
+      if(typeof document==="undefined"||document.visibilityState==="visible") activeSecRef.current+=5;
+    },5000);
+    return()=>clearInterval(t);
+  },[view]);
+
   const handleStart=async(info)=>{
     localStorage.setItem('fhmt_user',JSON.stringify(info));
     localStorage.setItem('fhmt_authed','1');
     setUserInfo(info);
     const u=`${info.nickname}-${info.device}-${info.browser}`;
     const ex=await loadF(u);
-    if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});}
-    setView("form");
+    if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});activeSecRef.current=ex.activeSec||0;}
+    setView("form");if(ex&&Object.values(ex.answers||{}).some(a=>a?.reply&&String(a.reply).trim()))setCur("replies");
   };
 
   const handleSwitch=()=>{
+    setPrefillNick(userInfo?.nickname||"");
     localStorage.removeItem('fhmt_user');
     localStorage.removeItem('fhmt_authed');
-    setUserInfo(null);setAnswers({});setFreeform({});setView("welcome");
+    setUserInfo(null);setAnswers({});setFreeform({});setCoverage(null);setView("welcome");
   };
 
   const totalDone=Object.values(answers).filter(a=>a?.status).length;
+  const replyCount=Object.values(answers).filter(a=>a?.reply&&String(a.reply).trim()).length;
   const pct=totalItems>0?Math.round(totalDone/totalItems*100):0;
   const scrollTop=()=>{contentRef.current?.scrollTo({top:0,behavior:"smooth"});};
 
   if(loading)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e"}}><img src={logoImg} alt="Logo" style={{width:56,height:56,objectFit:"contain",marginBottom:12}}/><p>載入中...</p></div></div>);
+  if(formClosed){
+    if(closedShowReplies&&replyCount>0)return(
+      <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",fontFamily:"'Noto Sans TC',-apple-system,sans-serif"}}>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet" />
+        <div style={{maxWidth:800,margin:"0 auto",padding:"24px 20px 60px"}}>
+          <button onClick={()=>setClosedShowReplies(false)} style={{marginBottom:16,padding:"8px 16px",borderRadius:10,background:"rgba(255,255,255,.7)",border:"1px solid rgba(0,0,0,.1)",cursor:"pointer",fontSize:13,color:"#6b5830"}}>← 返回</button>
+          <RepliesView answers={answers} parts={parts||[]}/>
+        </div>
+      </div>);
+    return(
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",padding:20}}>
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet" />
+        <div style={{textAlign:"center",maxWidth:420}}>
+          <img src={logoImg} alt="Logo" style={{width:90,height:90,objectFit:"contain",display:"block",margin:"0 auto 20px"}}/>
+          <h2 style={{color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif",fontSize:24,margin:"0 0 14px"}}>本次測試已結束</h2>
+          <p style={{color:"#9a8a6e",fontSize:15,lineHeight:1.9,margin:"0 0 24px"}}>謝謝你的參與 🙏</p>
+          {replyCount>0&&<button onClick={()=>setClosedShowReplies(true)} style={{padding:"12px 28px",borderRadius:12,background:"linear-gradient(135deg,#6B8E4E,#8aad6a)",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:"pointer"}}>📣 查看管理員回覆（{replyCount}）</button>}
+        </div>
+      </div>);
+  }
   if(!authed)return <PasscodeGate onPass={(g)=>{ setGroup(g||null); setAuthed(true); localStorage.setItem('fhmt_authed','1'); localStorage.setItem('fhmt_group', g||''); }} />;
   if(!parts||parts.length===0)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e",maxWidth:400,padding:20}}><div style={{fontSize:40,marginBottom:12}}>📋</div><h2 style={{color:"#5B3A1F"}}>題目尚未設定</h2><p style={{fontSize:14,lineHeight:1.7}}>請聯絡管理員到 /admin 初始化題目。</p></div></div>);
   if(visibleParts.length===0)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e",maxWidth:400,padding:20}}><div style={{fontSize:40,marginBottom:12}}>🔑</div><h2 style={{color:"#5B3A1F"}}>這組通行碼目前沒有題目</h2><p style={{fontSize:14,lineHeight:1.7}}>請聯絡管理方確認你的通行碼，或稍後再試。</p><button onClick={()=>{localStorage.removeItem('fhmt_authed');localStorage.removeItem('fhmt_group');location.reload();}} style={{marginTop:16,padding:"10px 20px",borderRadius:10,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",color:"#fff",border:"none",cursor:"pointer",fontSize:13,fontWeight:600}}>重新輸入通行碼</button></div></div>);
-  if(view==="welcome")return <Welcome onStart={handleStart} />;
-  if(submitted)return(
+  if(view==="welcome")return <Welcome onStart={handleStart} initialNick={prefillNick} />;
+  if(submitted){
+    const bothDone=coverage&&coverage.pc&&coverage.mobile;
+    const missing=coverage?(!coverage.pc?"電腦":!coverage.mobile?"手機或平板":null):null;
+    return(
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",padding:20}}>
-      <div style={{textAlign:"center",maxWidth:420}}>
-        <img src={logoImg} alt="Logo" style={{width:100,height:100,objectFit:"contain",display:"block",margin:"0 auto 20px"}}/>
+      <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet" />
+      <div style={{textAlign:"center",maxWidth:440}}>
+        <img src={logoImg} alt="Logo" style={{width:90,height:90,objectFit:"contain",display:"block",margin:"0 auto 20px"}}/>
         <h2 style={{color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif",fontSize:24,margin:"0 0 16px"}}>感謝除蟲小夥伴</h2>
-        <p style={{color:"#9a8a6e",fontSize:15,lineHeight:1.9,margin:"0 0 28px"}}>你捉的蟲蟲們隊長技師已拿到，會盡快移除。<br/>如果想再測試其他裝置，可以點擊下方開始新測試。</p>
-        <button onClick={()=>{localStorage.removeItem('fhmt_user');setUserInfo(null);setAnswers({});setFreeform({});setSubmitted(false);setView("welcome");}} style={{padding:"12px 32px",borderRadius:12,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",letterSpacing:1}}>開始新測試</button>
+        {bothDone
+          ? <p style={{color:"#6B8E4E",fontSize:15,lineHeight:1.9,margin:"0 0 28px",fontWeight:600}}>🎉 你已經用「電腦」和「手機／平板」兩種都測完了，太感謝了！</p>
+          : <>
+              <p style={{color:"#9a8a6e",fontSize:15,lineHeight:1.9,margin:"0 0 16px"}}>你這次的回報已收到 🙏</p>
+              {missing&&<div style={{margin:"0 auto 24px",maxWidth:390,padding:"14px 16px",borderRadius:12,background:"rgba(196,144,0,.1)",border:"1px solid rgba(196,144,0,.3)",color:"#8a6d1a",fontSize:14,lineHeight:1.8,textAlign:"left"}}>⚠️ 本次「電腦」和「手機或平板」<b>兩種都要測</b>。<br/>你還差用「<b>{missing}</b>」測一次 —— 請用<b>一樣的清信號</b>，點下面換裝置再測一次。</div>}
+            </>}
+        <button onClick={()=>{setPrefillNick(userInfo?.nickname||"");localStorage.removeItem('fhmt_user');setUserInfo(null);setAnswers({});setFreeform({});setSubmitted(false);setCoverage(null);setView("welcome");}} style={{padding:"12px 32px",borderRadius:12,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",letterSpacing:1}}>{bothDone?"用其他裝置再測（選填）":"換另一種裝置再測一次 →"}</button>
       </div>
     </div>
-  );
+    );
+  }
 
   const active=visibleParts.find(p=>p.id===cur);
-  const allIds=[...visibleParts.map(p=>p.id),"freeform"];
+  const allIds=[...(replyCount>0?["replies"]:[]),...visibleParts.map(p=>p.id),"freeform"];
   const isMob=typeof window!=="undefined"&&window.innerWidth<768;
 
   return(
@@ -310,6 +401,10 @@ export default function FeedbackApp() {
         {isMob&&<button onClick={()=>setMobNav(!mobNav)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#8B5A2B",padding:4}}>☰</button>}
         <img src={logoImg} alt="Logo" style={{width:24,height:24,objectFit:"contain"}}/><span style={{fontSize:14,fontWeight:700,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>方壺山道場 測試回饋</span><div style={{flex:1}}/>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:3}}>
+            <span style={{fontSize:11,color:"#9a8a6e"}}>字級</span>
+            {[["小",1],["中",1.18],["大",1.4]].map(([lbl,f])=>(<button key={lbl} onClick={()=>{setFontScale(f);localStorage.setItem('fhmt_fontscale',String(f));}} style={{padding:"3px 9px",borderRadius:8,border:`1px solid ${Math.abs(fontScale-f)<0.01?"#8B5A2B":"rgba(0,0,0,.15)"}`,background:Math.abs(fontScale-f)<0.01?"#8B5A2B":"transparent",color:Math.abs(fontScale-f)<0.01?"#fff":"#6b5830",cursor:"pointer",fontSize:12,fontWeight:600}}>{lbl}</button>))}
+          </div>
           {saveStatus==="saving"&&<span style={{fontSize:11,color:"#c49000"}}>儲存中...</span>}
           {saveStatus==="saved"&&<span style={{fontSize:11,color:"#6B8E4E"}}>✓ 已儲存</span>}
           <div style={{padding:"4px 12px",borderRadius:16,background:pct>=100?"#6B8E4E":"rgba(139,90,43,.12)",fontSize:12,fontWeight:700,color:pct>=100?"#fff":"#8B5A2B"}}>{totalDone}/{totalItems}　{pct}%</div>
@@ -317,14 +412,29 @@ export default function FeedbackApp() {
         </div>
       </header>
       <div style={{display:"flex",flex:1,minHeight:0}}>
-        {!isMob&&<aside style={{width:240,minWidth:240,borderRight:"1px solid rgba(0,0,0,.06)",background:"rgba(255,255,255,.4)",overflowY:"auto",padding:"8px 6px"}}><Nav parts={visibleParts} cur={cur} onSelect={id=>{setCur(id);scrollTop();}} answers={answers} freeform={freeform}/></aside>}
-        {mobNav&&<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:200,background:"rgba(0,0,0,.3)",backdropFilter:"blur(4px)"}} onClick={()=>setMobNav(false)}><div style={{width:280,height:"100%",background:"rgba(247,240,227,.98)",overflowY:"auto",padding:"60px 10px 20px",boxShadow:"4px 0 20px rgba(0,0,0,.1)"}} onClick={e=>e.stopPropagation()}><Nav parts={visibleParts} cur={cur} onSelect={id=>{setCur(id);setMobNav(false);scrollTop();}} answers={answers} freeform={freeform}/></div></div>}
-        <main ref={contentRef} style={{flex:1,overflowY:"auto",padding:"24px 20px 60px",maxWidth:800,margin:"0 auto",width:"100%"}}>
-          {cur==="freeform"?<Freeform answers={freeform} onAnswer={(k,v)=>setFreeform(p=>({...p,[k]:v}))}/>:active?<PartView part={active} answers={answers} onAnswer={(id,a)=>setAnswers(p=>({...p,[id]:a}))} uid={uid}/>:null}
+        {!isMob&&<aside style={{width:240,minWidth:240,borderRight:"1px solid rgba(0,0,0,.06)",background:"rgba(255,255,255,.4)",overflowY:"auto",padding:"8px 6px"}}><Nav parts={visibleParts} cur={cur} onSelect={id=>{setCur(id);scrollTop();}} answers={answers} freeform={freeform} repliesCount={replyCount}/></aside>}
+        {mobNav&&<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:200,background:"rgba(0,0,0,.3)",backdropFilter:"blur(4px)"}} onClick={()=>setMobNav(false)}><div style={{width:280,height:"100%",background:"rgba(247,240,227,.98)",overflowY:"auto",padding:"60px 10px 20px",boxShadow:"4px 0 20px rgba(0,0,0,.1)"}} onClick={e=>e.stopPropagation()}><Nav parts={visibleParts} cur={cur} onSelect={id=>{setCur(id);setMobNav(false);scrollTop();}} answers={answers} freeform={freeform} repliesCount={replyCount}/></div></div>}
+        <main ref={contentRef} style={{flex:1,overflowY:"auto",padding:"24px 20px 60px",maxWidth:800,margin:"0 auto",width:"100%",zoom:fontScale}}>
+          {cur==="freeform"?<Freeform answers={freeform} onAnswer={(k,v)=>setFreeform(p=>({...p,[k]:v}))}/>:cur==="replies"?<RepliesView answers={answers} parts={visibleParts}/>:active?<PartView part={active} answers={answers} onAnswer={(id,a)=>setAnswers(p=>({...p,[id]:a}))} uid={uid} submitAttempted={submitAttempted}/>:null}
           <div style={{display:"flex",justifyContent:"space-between",marginTop:32,paddingTop:20,borderTop:"1px solid rgba(0,0,0,.08)"}}>
             {cur!==allIds[0]?<button onClick={()=>{const i=allIds.indexOf(cur);if(i>0){setCur(allIds[i-1]);scrollTop();}}} style={{padding:"10px 20px",borderRadius:10,background:"rgba(255,255,255,.6)",border:"1px solid rgba(0,0,0,.1)",cursor:"pointer",fontSize:13,color:"#6b5830"}}>← 上一段</button>:<div/>}
             {cur!=="freeform"?<button onClick={()=>{const i=allIds.indexOf(cur);if(i<allIds.length-1){setCur(allIds[i+1]);scrollTop();}}} style={{padding:"10px 20px",borderRadius:10,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",border:"none",cursor:"pointer",fontSize:13,color:"#fff",fontWeight:600}}>下一段 →</button>
-            :<button onClick={async()=>{await doSave();setSubmitted(true);}} style={{padding:"10px 24px",borderRadius:10,background:"linear-gradient(135deg,#6B8E4E,#8aad6a)",border:"none",cursor:"pointer",fontSize:14,color:"#fff",fontWeight:700}}>🙏 完成送出</button>}
+            :<button onClick={async()=>{
+              const missing=[];
+              for(const p of visibleParts)for(const sec of p.sections)for(const it of sec.items){const a=answers[it.id];if(a?.status==="confused"&&!(a.comment&&a.comment.trim()))missing.push({id:it.id,partId:p.id});}
+              if(missing.length){
+                setSubmitAttempted(true);
+                const first=missing[0];
+                setCur(first.partId);
+                setTimeout(()=>{document.getElementById("item-"+first.id)?.scrollIntoView({behavior:"smooth",block:"center"});},150);
+                alert(`還有 ${missing.length} 題標為「不通過」但沒填原因。\n請補上原因才能送出（畫面已跳到第一題）。`);
+                return;
+              }
+              await doSave();
+              const cat=userInfo.device==="電腦"?"pc":"mobile";
+              await dbSet(`kv/personDevices/${safeId(userInfo.nickname)}/${cat}`,true);
+              setSubmitted(true);
+            }} style={{padding:"10px 24px",borderRadius:10,background:"linear-gradient(135deg,#6B8E4E,#8aad6a)",border:"none",cursor:"pointer",fontSize:14,color:"#fff",fontWeight:700}}>🙏 完成送出</button>}
           </div>
         </main>
       </div>
