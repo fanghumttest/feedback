@@ -271,10 +271,11 @@ export default function FeedbackApp() {
         const info=JSON.parse(saved);
         setUserInfo(info);
         if(q){
+          // parts 維持全部，cur 校正到「該組別 + 該裝置」的第一個關卡（顯示交由 visibleParts 過濾）
           const dt=info.device==='電腦'?'desktop':'mobile';
-          const filtered=q.filter(p=>!p.device||p.device==='both'||p.device===dt);
-          const show=filtered.length>0?filtered:q;
-          setParts(show); setCur(show[0]?.id||null);
+          const g=localStorage.getItem('fhmt_group');
+          const first=q.find(p=>(!g||p.group===g)&&(!p.device||p.device==='both'||p.device===dt));
+          if(first) setCur(first.id);
         }
         const u=`${info.nickname}-${info.device}-${info.browser}`;
         const ex=await loadF(u);
@@ -285,17 +286,23 @@ export default function FeedbackApp() {
     setLoading(false);
   })();},[]);
 
-  // 依組別過濾出這位測試員看得到的關卡
-  const visibleParts = parts ? (group ? parts.filter(p=>p.group===group) : parts) : [];
+  // 依「組別 + 裝置」過濾出這位測試員看得到的關卡
+  // device：電腦→desktop，手機/平板→mobile；題目沒標 device 或標 both 則兩種都顯示
+  const dt = userInfo?.device==='電腦' ? 'desktop' : (userInfo?.device ? 'mobile' : null);
+  const filterParts = (list) => list.filter(p =>
+    (!group || p.group===group) &&
+    (!dt || !p.device || p.device==='both' || p.device===dt)
+  );
+  const visibleParts = parts ? filterParts(parts) : [];
 
   // 把目前選到的關卡（cur）校正到可見範圍內
   useEffect(()=>{
     if(!parts)return;
-    const vp = group ? parts.filter(p=>p.group===group) : parts;
+    const vp = filterParts(parts);
     if(vp.length===0)return;
     if(cur==="freeform"||cur==="replies")return;
     if(!cur||!vp.some(p=>p.id===cur)) setCur(vp[0].id);
-  },[parts,group,cur]);
+  },[parts,group,cur,userInfo]);
 
   const totalItems=visibleParts.reduce((t,p)=>t+p.sections.reduce((s,sec)=>s+sec.items.length,0),0);
   const uid=userInfo?`${userInfo.nickname}-${userInfo.device}-${userInfo.browser}`:null;
@@ -335,10 +342,11 @@ export default function FeedbackApp() {
     localStorage.setItem('fhmt_authed','1');
     setUserInfo(info);
     const allQ=allPartsRef.current||[];
+    // parts 維持全部，cur 校正到「該組別 + 該裝置」的第一個關卡（顯示交由 visibleParts 過濾）
+    setParts(allQ);
     const dt=info.device==='電腦'?'desktop':'mobile';
-    const filtered=allQ.filter(p=>!p.device||p.device==='both'||p.device===dt);
-    const show=filtered.length>0?filtered:allQ;
-    setParts(show); setCur(show[0]?.id||null);
+    const first=allQ.find(p=>(!group||p.group===group)&&(!p.device||p.device==='both'||p.device===dt));
+    setCur(first?first.id:(allQ[0]?.id||null));
     const u=`${info.nickname}-${info.device}-${info.browser}`;
     const ex=await loadF(u);
     if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});activeSecRef.current=ex.activeSec||0;}
