@@ -401,10 +401,11 @@ function QuestionEditor({parts, onSave}) {
             <span style={{ fontSize: 14, color: "#a09880" }}>{isExp ? "▾" : "▸"}</span>
           </div>
           {isExp && (<div style={{ padding: "0 18px 18px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 80px", gap: 8, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 80px 140px", gap: 8, marginBottom: 12 }}>
               <div><label style={{ fontSize: 11, color: "#9a8a6e" }}>副標題</label><input value={part.subtitle} onChange={e => updatePart(pi, "subtitle", e.target.value)} style={inp} /></div>
               <div><label style={{ fontSize: 11, color: "#9a8a6e" }}>組別（分流用）</label><input value={part.group || ""} onChange={e => updatePart(pi, "group", e.target.value.trim() || undefined)} style={inp} placeholder="如 A / B" /></div>
               <div><label style={{ fontSize: 11, color: "#9a8a6e" }}>圖示</label><input value={part.icon} onChange={e => updatePart(pi, "icon", e.target.value)} style={{ ...inp, width: 80 }} /></div>
+              <div><label style={{ fontSize: 11, color: "#9a8a6e" }}>顯示裝置</label><select value={part.device||"both"} onChange={e=>updatePart(pi,"device",e.target.value)} style={{...inp,cursor:"pointer"}}><option value="both">📱💻 全裝置</option><option value="desktop">💻 桌機專用</option><option value="mobile">📱 手機專用</option></select></div>
             </div>
             <div style={{ marginBottom: 12 }}><label style={{ fontSize: 11, color: "#9a8a6e" }}>情境說明</label><textarea value={part.description || ""} onChange={e => updatePart(pi, "description", e.target.value)} style={{ ...inp, minHeight: 50, resize: "vertical" }} /></div>
             {part.sections.map((sec, si) => {

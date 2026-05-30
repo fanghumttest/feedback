@@ -230,6 +230,7 @@ export default function FeedbackApp() {
   const [group,setGroup]=useState(null);   // 該測試員的組別（null = 看全部）
   const [view,setView]=useState("welcome");
   const [parts,setParts]=useState(null);
+  const allPartsRef=useRef(null);
   const [loading,setLoading]=useState(true);
   const [userInfo,setUserInfo]=useState(null);
   const [answers,setAnswers]=useState({});
@@ -261,13 +262,20 @@ export default function FeedbackApp() {
       const g=localStorage.getItem('fhmt_group');
       setGroup(g?g:null);
     }
-    const q=await loadQ(); if(q){setParts(q);}
+    const q=await loadQ();
+    if(q){ allPartsRef.current=q; setParts(q); setCur(q[0]?.id||null); }
     // 自動恢復上次的填寫者
     const saved=localStorage.getItem('fhmt_user');
     if(saved){
       try{
         const info=JSON.parse(saved);
         setUserInfo(info);
+        if(q){
+          const dt=info.device==='電腦'?'desktop':'mobile';
+          const filtered=q.filter(p=>!p.device||p.device==='both'||p.device===dt);
+          const show=filtered.length>0?filtered:q;
+          setParts(show); setCur(show[0]?.id||null);
+        }
         const u=`${info.nickname}-${info.device}-${info.browser}`;
         const ex=await loadF(u);
         if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});activeSecRef.current=ex.activeSec||0;}
@@ -326,6 +334,11 @@ export default function FeedbackApp() {
     localStorage.setItem('fhmt_user',JSON.stringify(info));
     localStorage.setItem('fhmt_authed','1');
     setUserInfo(info);
+    const allQ=allPartsRef.current||[];
+    const dt=info.device==='電腦'?'desktop':'mobile';
+    const filtered=allQ.filter(p=>!p.device||p.device==='both'||p.device===dt);
+    const show=filtered.length>0?filtered:allQ;
+    setParts(show); setCur(show[0]?.id||null);
     const u=`${info.nickname}-${info.device}-${info.browser}`;
     const ex=await loadF(u);
     if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});activeSecRef.current=ex.activeSec||0;}
