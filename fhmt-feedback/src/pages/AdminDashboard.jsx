@@ -461,8 +461,16 @@ function QuestionEditor({parts, onSave}) {
 function Overview({ users, parts, onDelete, onZoom, onReply }) {
   const [sel, setSel] = useState(null); const [showAll, setShowAll] = useState(false); const total = TOTAL(parts);
   const getP = u => { if (!u?.answers) return { done: 0, pct: 0 }; const d = Object.values(u.answers).filter(a => a?.status).length; return { done: d, pct: d / (USER_TOTAL(parts, total, u) || 1) }; };
-  // 依清信號統計裝置涵蓋（電腦 / 手機平板 有沒有都測過）
-  const cov = {}; users.forEach(u => { if (!u?.nickname) return; if (!cov[u.nickname]) cov[u.nickname] = { pc: false, mobile: false }; if (u.device === "電腦") cov[u.nickname].pc = true; else if (u.device === "手機" || u.device === "平板") cov[u.nickname].mobile = true; });
+  // 依清信號統計裝置涵蓋（電腦 / 手機平板 必須「全部作答完」才算測過）
+  const cov = {}; users.forEach(u => {
+    if (!u?.nickname) return;
+    if (!cov[u.nickname]) cov[u.nickname] = { pc: false, mobile: false };
+    const need = USER_TOTAL(parts, total, u);
+    const done = u.answers ? Object.values(u.answers).filter(a => a?.status).length : 0;
+    if (need <= 0 || done < need) return;
+    if (u.device === "電腦") cov[u.nickname].pc = true;
+    else if (u.device === "手機" || u.device === "平板") cov[u.nickname].mobile = true;
+  });
   return (<div style={{ display: "grid", gridTemplateColumns: sel ? "minmax(240px, 300px) 1fr" : "1fr", gap: 20, alignItems: "start" }}>
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {users.length === 0 ? <div style={{ padding: 40, textAlign: "center", color: "#9a8a6e", background: "rgba(255,255,255,.6)", borderRadius: 14 }}><p style={{ fontSize: 18, marginBottom: 8 }}>📋</p><p style={{ margin: 0 }}>還沒有人填寫。</p></div>
