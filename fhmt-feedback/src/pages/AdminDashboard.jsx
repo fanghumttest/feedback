@@ -108,8 +108,18 @@ async function saveGroupCodes(obj){ const clean={}; Object.entries(obj||{}).forE
 async function loadAllUsers() { const data=await dbGet('kv/feedbacks'); if(!data) return []; return Object.values(data).map(parseVal); }
 
 const TOTAL=(parts)=>parts.reduce((t,p)=>t+p.sections.reduce((s,sec)=>s+sec.items.length,0),0);
-// 依測試員的組別計算他「應該完成的題數」（沒有組別的就用全部題數）
-const USER_TOTAL=(parts,total,u)=>{ if(u&&u.group){ const gp=parts.filter(p=>p.group===u.group); const n=TOTAL(gp); return n||total; } return total; };
+// 依測試員的組別 + 裝置計算他「應該完成的題數」（沒有組別就用全部）
+// device：電腦→desktop，手機/平板→mobile；題目沒標 device 或標 both 兩種都算
+const USER_TOTAL=(parts,total,u)=>{
+  if(!u) return total;
+  const dt = u.device==='電腦' ? 'desktop' : (u.device ? 'mobile' : null);
+  const gp = parts.filter(p =>
+    (!u.group || p.group===u.group) &&
+    (!dt || !p.device || p.device==='both' || p.device===dt)
+  );
+  const n = TOTAL(gp);
+  return n || total;
+};
 // 把秒數轉成「X 分 Y 秒」；沒有資料(舊紀錄)回傳 null
 const fmtDur=(s)=>{ if(s==null||s<0) return null; const m=Math.floor(s/60), sec=Math.round(s%60); return m>0?`${m} 分 ${sec} 秒`:`${sec} 秒`; };
 function findItemText(parts,id){for(const p of parts)for(const s of p.sections)for(const i of s.items)if(i.id===id)return i.text;return id;}
