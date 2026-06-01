@@ -462,9 +462,12 @@ function Overview({ users, parts, onDelete, onZoom, onReply }) {
   const [sel, setSel] = useState(null); const [showAll, setShowAll] = useState(false); const total = TOTAL(parts);
   const getP = u => { if (!u?.answers) return { done: 0, pct: 0 }; const d = Object.values(u.answers).filter(a => a?.status).length; return { done: d, pct: d / (USER_TOTAL(parts, total, u) || 1) }; };
   // 依清信號統計裝置涵蓋（電腦 / 手機平板 必須「全部作答完」才算測過）
+  // 組F 只有桌機版（後台無 RWD），這種組別 mobile 視為 N/A
+  const groupsWithMobile = new Set(parts.filter(p => p.device === 'mobile' || p.device === 'both' || !p.device).map(p => p.group).filter(Boolean));
   const cov = {}; users.forEach(u => {
     if (!u?.nickname) return;
-    if (!cov[u.nickname]) cov[u.nickname] = { pc: false, mobile: false };
+    if (!cov[u.nickname]) cov[u.nickname] = { pc: false, mobile: false, needsMobile: false };
+    if (u.group && groupsWithMobile.has(u.group)) cov[u.nickname].needsMobile = true;
     const need = USER_TOTAL(parts, total, u);
     const done = u.answers ? Object.values(u.answers).filter(a => a?.status).length : 0;
     if (need <= 0 || done < need) return;
@@ -480,7 +483,7 @@ function Overview({ users, parts, onDelete, onZoom, onReply }) {
           const cc = u.answers ? Object.values(u.answers).filter(a => a?.status === "confused").length : 0;
           return (<div key={u.odName || u.nickname} style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <button onClick={() => setSel(act ? null : u)} style={{ flex: 1, display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: act ? "rgba(139,90,43,.08)" : "rgba(255,255,255,.7)", border: `1.5px solid ${act ? "rgba(139,90,43,.25)" : "rgba(0,0,0,.06)"}`, borderRadius: 14, cursor: "pointer", textAlign: "left" }}>
-              <Ring progress={p.pct} /><div style={{ flex: 1 }}><div style={{ fontSize: 15, fontWeight: 600, color: "#5B3A1F" }}>{u.nickname || "匿名"}</div><div style={{ fontSize: 12, color: "#9a8a6e", marginTop: 2 }}>{[u.device, u.browser, u.group ? `組${u.group}` : null, fmtDur(u.activeSec) ? `🕒${fmtDur(u.activeSec)}` : null, u.role].filter(Boolean).join(" · ")}</div>{(() => { const c = cov[u.nickname]; if (!c) return null; const both = c.pc && c.mobile; return <div style={{ fontSize: 11, marginTop: 3, fontWeight: 600, color: both ? "#6B8E4E" : "#c49000" }}>{both ? "✅ 電腦＋行動 都測了" : `⚠ 還差 ${!c.pc ? "電腦" : "手機/平板"}`}</div>; })()}</div>
+              <Ring progress={p.pct} /><div style={{ flex: 1 }}><div style={{ fontSize: 15, fontWeight: 600, color: "#5B3A1F" }}>{u.nickname || "匿名"}</div><div style={{ fontSize: 12, color: "#9a8a6e", marginTop: 2 }}>{[u.device, u.browser, u.group ? `組${u.group}` : null, fmtDur(u.activeSec) ? `🕒${fmtDur(u.activeSec)}` : null, u.role].filter(Boolean).join(" · ")}</div>{(() => { const c = cov[u.nickname]; if (!c) return null; const done = c.pc && (!c.needsMobile || c.mobile); const label = done ? (c.needsMobile ? "✅ 電腦＋行動 都測了" : "✅ 後台已測完") : `⚠ 還差 ${!c.pc ? "電腦" : "手機/平板"}`; return <div style={{ fontSize: 11, marginTop: 3, fontWeight: 600, color: done ? "#6B8E4E" : "#c49000" }}>{label}</div>; })()}</div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}><div style={{ fontSize: 16, fontWeight: 700, color: p.pct >= 1 ? "#6B8E4E" : "#a09880" }}>{Math.round(p.pct * 100)}%</div><div style={{ display: "flex", gap: 6, fontSize: 11 }}>{cc > 0 && <span style={{ color: "#a05520", fontWeight: 700 }}>❌ {cc}</span>}</div></div>
             </button>
             <button onClick={() => { if(window.confirm(`確定刪除「${u.nickname}」的填寫資料？`)) { if(sel?.odName===u.odName) setSel(null); onDelete(u.odName); } }} style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(196,80,40,.1)", border: "1px solid rgba(196,80,40,.15)", color: "#c44028", cursor: "pointer", fontSize: 13, flexShrink: 0 }}>🗑</button>
