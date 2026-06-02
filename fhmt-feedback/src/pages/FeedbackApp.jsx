@@ -162,27 +162,51 @@ function Freeform({answers,onAnswer}) {
   </div>);
 }
 
-function RepliesView({answers,parts}) {
+function RepliesView({answers,parts,freeform,freeformReplies}) {
   const items=[];
-  for(const p of parts)for(const sec of p.sections)for(const it of sec.items){const a=answers[it.id];if(a?.reply&&String(a.reply).trim())items.push({id:it.id,text:it.text,part:p,a});}
+  for(const p of parts)for(const sec of p.sections)for(const it of sec.items){const a=answers[it.id];const has=(a?.reply&&String(a.reply).trim())||(a?.replyImages&&a.replyImages.length>0);if(has)items.push({type:"item",id:it.id,text:it.text,part:p,a});}
+  // 自由回饋的回覆
+  if(freeformReplies){
+    Object.entries(freeformReplies).forEach(([k,fr])=>{
+      const has=(fr?.text&&String(fr.text).trim())||(fr?.images&&fr.images.length>0);
+      if(has)items.push({type:"freeform",id:k,key:k,fr,userText:freeform?.[k]});
+    });
+  }
   return(<div>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}><span style={{fontSize:28}}>📣</span><h2 style={{margin:0,fontSize:20,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>管理員回覆</h2></div>
     <p style={{color:"#6b5830",fontSize:13.5,marginBottom:20}}>謝謝你的回報！下面是管理員針對你回報項目的回覆。</p>
     {items.length===0?<p style={{color:"#9a8a6e",fontSize:14}}>目前還沒有回覆，過幾天再回來看看 🙏</p>
-    :<div style={{display:"flex",flexDirection:"column",gap:12}}>{items.map(({id,text,part,a})=>(
-      <div key={id} style={{padding:"14px 16px",borderRadius:12,background:"rgba(255,255,255,.6)",border:"1px solid rgba(0,0,0,.08)"}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
-          <span style={{fontSize:11.5,fontWeight:700,color:"#8B5A2B",background:"rgba(139,90,43,.1)",padding:"3px 11px",borderRadius:20}}>{part.icon} {part.subtitle}</span>
-          <span style={{fontSize:11.5,fontFamily:"monospace",color:"#9a8a6e"}}>#{id}</span>
-        </div>
-        <div style={{fontSize:14,lineHeight:1.6,color:"#3d3225",fontWeight:500}}>{text}</div>
-        {a.comment&&<div style={{marginTop:8,fontSize:13,lineHeight:1.6,color:"#6b5830",fontStyle:"italic"}}>你的回報：「{a.comment}」</div>}
-        <div style={{marginTop:10,padding:"10px 13px",borderRadius:8,background:"rgba(107,142,78,.08)",borderLeft:"3px solid #6B8E4E"}}>
-          <div style={{fontSize:11.5,fontWeight:700,color:"#5a8a3c",marginBottom:4}}>📣 管理員回覆</div>
-          <div style={{fontSize:14,lineHeight:1.65,color:"#3d4a2e",whiteSpace:"pre-wrap"}}>{a.reply}</div>
-        </div>
-      </div>
-    ))}</div>}
+    :<div style={{display:"flex",flexDirection:"column",gap:12}}>{items.map((it,idx)=>{
+      if(it.type==="item"){
+        const {id,text,part,a}=it;
+        return(<div key={"i-"+id} style={{padding:"14px 16px",borderRadius:12,background:"rgba(255,255,255,.6)",border:"1px solid rgba(0,0,0,.08)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+            <span style={{fontSize:11.5,fontWeight:700,color:"#8B5A2B",background:"rgba(139,90,43,.1)",padding:"3px 11px",borderRadius:20}}>{part.icon} {part.subtitle}</span>
+            <span style={{fontSize:11.5,fontFamily:"monospace",color:"#9a8a6e"}}>#{id}</span>
+          </div>
+          <div style={{fontSize:14,lineHeight:1.6,color:"#3d3225",fontWeight:500}}>{text}</div>
+          {a.comment&&<div style={{marginTop:8,fontSize:13,lineHeight:1.6,color:"#6b5830",fontStyle:"italic"}}>你的回報：「{a.comment}」</div>}
+          <div style={{marginTop:10,padding:"10px 13px",borderRadius:8,background:"rgba(107,142,78,.08)",borderLeft:"3px solid #6B8E4E"}}>
+            <div style={{fontSize:11.5,fontWeight:700,color:"#5a8a3c",marginBottom:4}}>📣 管理員回覆</div>
+            {a.reply&&<div style={{fontSize:14,lineHeight:1.65,color:"#3d4a2e",whiteSpace:"pre-wrap"}}>{a.reply}</div>}
+            {a.replyImages?.length>0&&<div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>{a.replyImages.map((u,i)=>(<a key={i} href={u} target="_blank" rel="noreferrer"><img src={u} alt="" style={{width:120,height:90,objectFit:"cover",borderRadius:6,border:"1px solid rgba(0,0,0,.1)",display:"block"}}/></a>))}</div>}
+          </div>
+        </div>);
+      } else {
+        const {key,fr,userText}=it;
+        return(<div key={"f-"+key} style={{padding:"14px 16px",borderRadius:12,background:"rgba(255,255,255,.6)",border:"1px solid rgba(0,0,0,.08)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+            <span style={{fontSize:11.5,fontWeight:700,color:"#8B5A2B",background:"rgba(139,90,43,.1)",padding:"3px 11px",borderRadius:20}}>💬 自由回饋</span>
+          </div>
+          {userText&&<div style={{marginTop:4,fontSize:13,lineHeight:1.6,color:"#6b5830",fontStyle:"italic",whiteSpace:"pre-wrap"}}>你的回報：「{userText}」</div>}
+          <div style={{marginTop:10,padding:"10px 13px",borderRadius:8,background:"rgba(107,142,78,.08)",borderLeft:"3px solid #6B8E4E"}}>
+            <div style={{fontSize:11.5,fontWeight:700,color:"#5a8a3c",marginBottom:4}}>📣 管理員回覆</div>
+            {fr.text&&<div style={{fontSize:14,lineHeight:1.65,color:"#3d4a2e",whiteSpace:"pre-wrap"}}>{fr.text}</div>}
+            {fr.images?.length>0&&<div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>{fr.images.map((u,i)=>(<a key={i} href={u} target="_blank" rel="noreferrer"><img src={u} alt="" style={{width:120,height:90,objectFit:"cover",borderRadius:6,border:"1px solid rgba(0,0,0,.1)",display:"block"}}/></a>))}</div>}
+          </div>
+        </div>);
+      }
+    })}</div>}
   </div>);
 }
 
@@ -235,6 +259,7 @@ export default function FeedbackApp() {
   const [userInfo,setUserInfo]=useState(null);
   const [answers,setAnswers]=useState({});
   const [freeform,setFreeform]=useState({});
+  const [freeformReplies,setFreeformReplies]=useState({});
   const [cur,setCur]=useState(null);
   const [mobNav,setMobNav]=useState(false);
   const [saveStatus,setSaveStatus]=useState("");
@@ -279,7 +304,7 @@ export default function FeedbackApp() {
         }
         const u=`${info.nickname}-${info.device}-${info.browser}`;
         const ex=await loadF(u);
-        if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});activeSecRef.current=ex.activeSec||0;}
+        if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});setFreeformReplies(ex.freeformReplies||{});activeSecRef.current=ex.activeSec||0;}
         setView("form");if(ex&&Object.values(ex.answers||{}).some(a=>a?.reply&&String(a.reply).trim()))setCur("replies");
       }catch(e){ localStorage.removeItem('fhmt_user'); }
     }
@@ -310,10 +335,37 @@ export default function FeedbackApp() {
   const doSave=useCallback(async()=>{
     if(!uid)return;
     setSaveStatus("saving");
-    await saveF(uid,{...userInfo,group,activeSec:activeSecRef.current,answers,freeform,updatedAt:new Date().toISOString(),odName:uid});
+    // 先撈 DB 最新狀態，把管理員可能剛寫的回覆欄位合併進來，避免覆寫
+    const remote=await loadF(uid);
+    // 規則：
+    //  - status / comment / images（測試員寫的）→ 以「本地 state」為準
+    //  - reply / replyImages（管理員寫的）→ 以「DB」為準（避免覆寫管理員最新回覆）
+    //  - 任一邊有題目就保留，不會掉題
+    const mergedAnswers={};
+    const allIds=new Set([...Object.keys(answers||{}),...Object.keys(remote?.answers||{})]);
+    allIds.forEach(id=>{
+      const la=answers?.[id]||{};
+      const ra=remote?.answers?.[id]||{};
+      mergedAnswers[id]={
+        ...ra,           // 先以 DB 為底（保留所有可能存在的欄位）
+        ...la,           // 再用本地覆蓋測試員相關欄位
+        reply:ra.reply!==undefined?ra.reply:la.reply,            // 強制以 DB 為準
+        replyImages:ra.replyImages!==undefined?ra.replyImages:la.replyImages,
+      };
+      // 把 undefined 欄位清掉（避免 Firebase 出錯）
+      Object.keys(mergedAnswers[id]).forEach(k=>{ if(mergedAnswers[id][k]===undefined)delete mergedAnswers[id][k]; });
+    });
+    // freeformReplies 全是管理員寫的，以 DB 為準
+    const safeFreeformReplies=remote?.freeformReplies||freeformReplies||{};
+    await saveF(uid,{
+      ...userInfo,group,activeSec:activeSecRef.current,
+      answers:mergedAnswers,freeform,
+      freeformReplies:safeFreeformReplies,
+      updatedAt:new Date().toISOString(),odName:uid
+    });
     setSaveStatus("saved");
     setTimeout(()=>setSaveStatus(""),2000);
-  },[uid,userInfo,group,answers,freeform]);
+  },[uid,userInfo,group,answers,freeform,freeformReplies]);
 
   useEffect(()=>{
     if(!uid)return;
@@ -349,7 +401,7 @@ export default function FeedbackApp() {
     setCur(first?first.id:(allQ[0]?.id||null));
     const u=`${info.nickname}-${info.device}-${info.browser}`;
     const ex=await loadF(u);
-    if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});activeSecRef.current=ex.activeSec||0;}
+    if(ex){setAnswers(ex.answers||{});setFreeform(ex.freeform||{});setFreeformReplies(ex.freeformReplies||{});activeSecRef.current=ex.activeSec||0;}
     setView("form");if(ex&&Object.values(ex.answers||{}).some(a=>a?.reply&&String(a.reply).trim()))setCur("replies");
   };
 
@@ -357,11 +409,12 @@ export default function FeedbackApp() {
     setPrefillNick(userInfo?.nickname||"");
     localStorage.removeItem('fhmt_user');
     localStorage.removeItem('fhmt_authed');
-    setUserInfo(null);setAnswers({});setFreeform({});setCoverage(null);setView("welcome");
+    setUserInfo(null);setAnswers({});setFreeform({});setFreeformReplies({});setCoverage(null);setView("welcome");
   };
 
   const totalDone=Object.values(answers).filter(a=>a?.status).length;
-  const replyCount=Object.values(answers).filter(a=>a?.reply&&String(a.reply).trim()).length;
+  const replyCount=Object.values(answers).filter(a=>(a?.reply&&String(a.reply).trim())||(a?.replyImages&&a.replyImages.length>0)).length
+    +Object.values(freeformReplies||{}).filter(fr=>(fr?.text&&String(fr.text).trim())||(fr?.images&&fr.images.length>0)).length;
   const pct=totalItems>0?Math.round(totalDone/totalItems*100):0;
   const scrollTop=()=>{contentRef.current?.scrollTo({top:0,behavior:"smooth"});};
 
@@ -372,7 +425,7 @@ export default function FeedbackApp() {
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Noto+Serif+TC:wght@700&display=swap" rel="stylesheet" />
         <div style={{maxWidth:800,margin:"0 auto",padding:"24px 20px 60px"}}>
           <button onClick={()=>setClosedShowReplies(false)} style={{marginBottom:16,padding:"8px 16px",borderRadius:10,background:"rgba(255,255,255,.7)",border:"1px solid rgba(0,0,0,.1)",cursor:"pointer",fontSize:13,color:"#6b5830"}}>← 返回</button>
-          <RepliesView answers={answers} parts={parts||[]}/>
+          <RepliesView answers={answers} parts={parts||[]} freeform={freeform} freeformReplies={freeformReplies}/>
         </div>
       </div>);
     return(
@@ -405,7 +458,7 @@ export default function FeedbackApp() {
               <p style={{color:"#9a8a6e",fontSize:15,lineHeight:1.9,margin:"0 0 16px"}}>你這次的回報已收到 🙏</p>
               {missing&&<div style={{margin:"0 auto 24px",maxWidth:390,padding:"14px 16px",borderRadius:12,background:"rgba(196,144,0,.1)",border:"1px solid rgba(196,144,0,.3)",color:"#8a6d1a",fontSize:14,lineHeight:1.8,textAlign:"left"}}>⚠️ 本次「電腦」和「手機或平板」<b>兩種都要測</b>。<br/>你還差用「<b>{missing}</b>」測一次 —— 請用<b>一樣的清信號</b>，點下面換裝置再測一次。</div>}
             </>}
-        <button onClick={()=>{setPrefillNick(userInfo?.nickname||"");localStorage.removeItem('fhmt_user');setUserInfo(null);setAnswers({});setFreeform({});setSubmitted(false);setCoverage(null);setView("welcome");}} style={{padding:"12px 32px",borderRadius:12,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",letterSpacing:1}}>{bothDone?"用其他裝置再測（選填）":"換另一種裝置再測一次 →"}</button>
+        <button onClick={()=>{setPrefillNick(userInfo?.nickname||"");localStorage.removeItem('fhmt_user');setUserInfo(null);setAnswers({});setFreeform({});setFreeformReplies({});setSubmitted(false);setCoverage(null);setView("welcome");}} style={{padding:"12px 32px",borderRadius:12,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",letterSpacing:1}}>{bothDone?"用其他裝置再測（選填）":"換另一種裝置再測一次 →"}</button>
       </div>
     </div>
     );
@@ -436,7 +489,7 @@ export default function FeedbackApp() {
         {!isMob&&<aside style={{width:240,minWidth:240,borderRight:"1px solid rgba(0,0,0,.06)",background:"rgba(255,255,255,.4)",overflowY:"auto",padding:"8px 6px"}}><Nav parts={visibleParts} cur={cur} onSelect={id=>{setCur(id);scrollTop();}} answers={answers} freeform={freeform} repliesCount={replyCount}/></aside>}
         {mobNav&&<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,zIndex:200,background:"rgba(0,0,0,.3)",backdropFilter:"blur(4px)"}} onClick={()=>setMobNav(false)}><div style={{width:280,height:"100%",background:"rgba(247,240,227,.98)",overflowY:"auto",padding:"60px 10px 20px",boxShadow:"4px 0 20px rgba(0,0,0,.1)"}} onClick={e=>e.stopPropagation()}><Nav parts={visibleParts} cur={cur} onSelect={id=>{setCur(id);setMobNav(false);scrollTop();}} answers={answers} freeform={freeform} repliesCount={replyCount}/></div></div>}
         <main ref={contentRef} style={{flex:1,overflowY:"auto",padding:"24px 20px 60px",maxWidth:800,margin:"0 auto",width:"100%",zoom:fontScale}}>
-          {cur==="freeform"?<Freeform answers={freeform} onAnswer={(k,v)=>setFreeform(p=>({...p,[k]:v}))}/>:cur==="replies"?<RepliesView answers={answers} parts={visibleParts}/>:active?<PartView part={active} answers={answers} onAnswer={(id,a)=>setAnswers(p=>({...p,[id]:a}))} uid={uid} submitAttempted={submitAttempted}/>:null}
+          {cur==="freeform"?<Freeform answers={freeform} onAnswer={(k,v)=>setFreeform(p=>({...p,[k]:v}))}/>:cur==="replies"?<RepliesView answers={answers} parts={visibleParts} freeform={freeform} freeformReplies={freeformReplies}/>:active?<PartView part={active} answers={answers} onAnswer={(id,a)=>setAnswers(p=>({...p,[id]:a}))} uid={uid} submitAttempted={submitAttempted}/>:null}
           <div style={{display:"flex",justifyContent:"space-between",marginTop:32,paddingTop:20,borderTop:"1px solid rgba(0,0,0,.08)"}}>
             {cur!==allIds[0]?<button onClick={()=>{const i=allIds.indexOf(cur);if(i>0){setCur(allIds[i-1]);scrollTop();}}} style={{padding:"10px 20px",borderRadius:10,background:"rgba(255,255,255,.6)",border:"1px solid rgba(0,0,0,.1)",cursor:"pointer",fontSize:13,color:"#6b5830"}}>← 上一段</button>:<div/>}
             {cur!=="freeform"?<button onClick={()=>{const i=allIds.indexOf(cur);if(i<allIds.length-1){setCur(allIds[i+1]);scrollTop();}}} style={{padding:"10px 20px",borderRadius:10,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",border:"none",cursor:"pointer",fontSize:13,color:"#fff",fontWeight:600}}>下一段 →</button>

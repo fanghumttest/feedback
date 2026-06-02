@@ -97,6 +97,26 @@ const DEFAULT_PARTS = [
 // ── Storage ─────────────────────────────────────────────────
 const safeId = s => s.replace(/[.#$[\]]/g, '_');
 const parseVal = r => { if (!r) return null; return typeof r === 'string' ? JSON.parse(r) : r; };
+
+// 把圖片壓成 WebP（不夠舊瀏覽器則回退 JPEG）— 寬 600、品質 0.7
+function compressToDataUrl(file, maxW = 600, quality = 0.70) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const webp = canvas.toDataURL('image/webp', quality);
+      resolve(webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
 async function loadQ()        { return parseVal(await dbGet('kv/questions')); }
 async function saveQ(d)       { return await dbSet('kv/questions', JSON.stringify(d)); }
 async function loadPasscode() { return await dbGet('kv/passcode'); }
@@ -202,16 +222,48 @@ function PasscodeSettings() {
 }
 
 // 管理員針對單一題目回覆測試員（測試員下次回來會看到）
-function ReplyBox({ value, onSave }) {
+function ReplyBox({ value, images, onSave }) {
   const [draft, setDraft] = useState(value || "");
+  const [imgs, setImgs] = useState(images || []);
   const [saved, setSaved] = useState(false);
-  useEffect(() => { setDraft(value || ""); }, [value]);
+  const [uploading, setUploading] = useState(false);
+  useEffect(() => { setDraft(value || ""); setImgs(images || []); }, [value, images]);
+
+  const handleUpload = async e => {
+    const files = Array.from(e.target.files).slice(0, 2 - imgs.length);
+    if (!files.length) return;
+    e.target.value = '';
+    setUploading(true); setSaved(false);
+    const dus = [];
+    for (const f of files) {
+      const du = await compressToDataUrl(f);
+      if (du) dus.push(du);
+    }
+    setImgs([...imgs, ...dus]);
+    setUploading(false);
+  };
+  const removeImg = idx => { setImgs(imgs.filter((_, i) => i !== idx)); setSaved(false); };
+
   return (
     <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 8, background: "rgba(107,142,78,.06)", border: "1px solid rgba(107,142,78,.2)" }}>
       <div style={{ fontSize: 11.5, fontWeight: 700, color: "#5a8a3c", marginBottom: 6 }}>📣 回覆測試員（他下次回來會看到）</div>
       <textarea value={draft} onChange={e => { setDraft(e.target.value); setSaved(false); }} placeholder="例：已修正 / 設計如此 / 下版會改…" style={{ width: "100%", padding: 8, borderRadius: 6, fontSize: 13, border: "1px solid rgba(0,0,0,.12)", minHeight: 48, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5, boxSizing: "border-box", outline: "none", background: "rgba(255,255,255,.85)" }} />
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-        <button onClick={async () => { await onSave(draft.trim()); setSaved(true); setTimeout(() => setSaved(false), 2000); }} style={{ padding: "5px 14px", borderRadius: 8, background: "#6B8E4E", color: "#fff", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>儲存回覆</button>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+        {imgs.map((url, i) => (
+          <div key={i} style={{ position: "relative" }}>
+            <img src={url} alt="" style={{ width: 64, height: 48, objectFit: "cover", borderRadius: 5, border: "1px solid rgba(0,0,0,.1)", display: "block" }} />
+            <button onClick={() => removeImg(i)} style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: 9, background: "#c44028", border: "none", color: "#fff", fontSize: 11, cursor: "pointer", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>×</button>
+          </div>
+        ))}
+        {imgs.length < 2 && (
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, border: "1px dashed rgba(0,0,0,.18)", cursor: "pointer", fontSize: 12, color: "#5a8a3c", background: "rgba(255,255,255,.5)" }}>
+            {uploading ? "上傳中..." : "📷 附截圖"}
+            <input type="file" accept="image/*" multiple onChange={handleUpload} style={{ display: "none" }} disabled={uploading} />
+          </label>
+        )}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+        <button onClick={async () => { await onSave(draft.trim(), imgs); setSaved(true); setTimeout(() => setSaved(false), 2000); }} style={{ padding: "5px 14px", borderRadius: 8, background: "#6B8E4E", color: "#fff", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>儲存回覆</button>
         {saved && <span style={{ fontSize: 12, color: "#6B8E4E" }}>✓ 已儲存</span>}
       </div>
     </div>
@@ -458,7 +510,7 @@ function QuestionEditor({parts, onSave}) {
 }
 
 // ── Overview ────────────────────────────────────────────────
-function Overview({ users, parts, onDelete, onZoom, onReply }) {
+function Overview({ users, parts, onDelete, onZoom, onReply, onReplyFreeform }) {
   const [sel, setSel] = useState(null); const [showAll, setShowAll] = useState(false); const total = TOTAL(parts);
   const getP = u => { if (!u?.answers) return { done: 0, pct: 0 }; const d = Object.values(u.answers).filter(a => a?.status).length; return { done: d, pct: d / (USER_TOTAL(parts, total, u) || 1) }; };
   // 依清信號統計裝置涵蓋（電腦 / 手機平板 必須「全部作答完」才算測過）
@@ -529,11 +581,20 @@ function Overview({ users, parts, onDelete, onZoom, onReply }) {
           {/* 附圖 */}
           {a.images?.length > 0 && <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>{a.images.map((url, i) => <img key={i} src={url} alt="" onClick={() => onZoom && onZoom(url)} style={{ width: 130, height: 98, objectFit: "cover", borderRadius: 8, border: "1px solid rgba(0,0,0,.12)", cursor: "zoom-in", display: "block" }} />)}</div>}
           {/* 管理員回覆 */}
-          <ReplyBox value={a.reply} onSave={async (text) => { await onReply(sel.odName, id, text); setSel(s => ({ ...s, answers: { ...s.answers, [id]: { ...(s.answers?.[id] || {}), reply: text } } })); }} />
+          <ReplyBox value={a.reply} images={a.replyImages} onSave={async (text, images) => { await onReply(sel.odName, id, text, images); setSel(s => ({ ...s, answers: { ...s.answers, [id]: { ...(s.answers?.[id] || {}), reply: text, replyImages: images } } })); }} />
         </div>
         );
       })}
-      {sel.freeform && Object.entries(sel.freeform).filter(([, v]) => v).map(([k, v]) => (<div key={k} style={{ marginTop: 8 }}><div style={{ fontSize: 12, color: "#9a8a6e", fontWeight: 600 }}>{k}</div><p style={{ margin: "2px 0 0", fontSize: 13, color: "#3d3225", whiteSpace: "pre-wrap" }}>{v}</p></div>))}
+      {sel.freeform && Object.entries(sel.freeform).filter(([, v]) => v).map(([k, v]) => {
+        const fr = sel.freeformReplies?.[k] || {};
+        return (
+          <div key={k} style={{ marginTop: 16, padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,.5)", border: "1px solid rgba(0,0,0,.06)" }}>
+            <div style={{ fontSize: 12, color: "#9a8a6e", fontWeight: 600 }}>💬 自由回饋（{k}）</div>
+            <p style={{ margin: "4px 0 0", fontSize: 13.5, lineHeight: 1.65, color: "#3d3225", whiteSpace: "pre-wrap" }}>{v}</p>
+            <ReplyBox value={fr.text} images={fr.images} onSave={async (text, images) => { await onReplyFreeform(sel.odName, k, text, images); setSel(s => ({ ...s, freeformReplies: { ...(s.freeformReplies || {}), [k]: { text, images } } })); }} />
+          </div>
+        );
+      })}
     </div>)}
   </div>);
 }
@@ -641,10 +702,29 @@ export default function Dashboard() {
     setUsers(prev => prev.filter(u => u.odName !== uid));
   };
 
-  const replyTo = async (uid, itemId, text) => {
-    const u = users.find(x => x.odName === uid);
-    if (!u) return;
-    const updated = { ...u, answers: { ...(u.answers || {}), [itemId]: { ...((u.answers || {})[itemId] || {}), reply: text } } };
+  const replyTo = async (uid, itemId, text, images) => {
+    const imgs = images || [];
+    // 先 re-fetch DB 最新狀態，避免覆蓋掉測試員同時的填寫
+    const fresh = parseVal(await dbGet(`kv/feedbacks/${safeId(uid)}`)) || users.find(x => x.odName === uid) || {};
+    const updated = {
+      ...fresh,
+      answers: {
+        ...(fresh.answers || {}),
+        [itemId]: { ...(fresh.answers?.[itemId] || {}), reply: text, replyImages: imgs },
+      },
+    };
+    await dbSet(`kv/feedbacks/${safeId(uid)}`, JSON.stringify(updated));
+    setUsers(prev => prev.map(x => x.odName === uid ? updated : x));
+  };
+
+  // 針對「自由回饋」的回覆：寫到獨立欄位 freeformReplies[key]，不動原 freeform 文字
+  const replyToFreeform = async (uid, key, text, images) => {
+    const imgs = images || [];
+    const fresh = parseVal(await dbGet(`kv/feedbacks/${safeId(uid)}`)) || users.find(x => x.odName === uid) || {};
+    const updated = {
+      ...fresh,
+      freeformReplies: { ...(fresh.freeformReplies || {}), [key]: { text, images: imgs } },
+    };
     await dbSet(`kv/feedbacks/${safeId(uid)}`, JSON.stringify(updated));
     setUsers(prev => prev.map(x => x.odName === uid ? updated : x));
   };
@@ -690,7 +770,7 @@ export default function Dashboard() {
           <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "10px 18px", border: "none", cursor: "pointer", background: tab === t.id ? "rgba(139,90,43,.1)" : "transparent", borderBottom: tab === t.id ? "3px solid #8B5A2B" : "3px solid transparent", fontSize: 14, fontWeight: tab === t.id ? 700 : 400, color: tab === t.id ? "#5B3A1F" : "#9a8a6e", borderRadius: "8px 8px 0 0" }}>{t.label}</button>
         ))}
       </div>
-      {tab === "overview" && parts && <Overview users={users} parts={parts} onDelete={deleteUser} onZoom={setZoomSrc} onReply={replyTo} />}
+      {tab === "overview" && parts && <Overview users={users} parts={parts} onDelete={deleteUser} onZoom={setZoomSrc} onReply={replyTo} onReplyFreeform={replyToFreeform} />}
       {tab === "hotspots" && parts && <Hotspots users={users} parts={parts} />}
       {tab === "editor" && parts && <QuestionEditor parts={parts} onSave={d => setParts(d)} />}
     </div>
