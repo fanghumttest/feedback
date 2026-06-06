@@ -164,7 +164,8 @@ function Freeform({answers,onAnswer}) {
 
 function RepliesView({answers,parts,freeform,freeformReplies}) {
   const items=[];
-  for(const p of parts)for(const sec of p.sections)for(const it of sec.items){const a=answers[it.id];const has=(a?.reply&&String(a.reply).trim())||(a?.replyImages&&a.replyImages.length>0);if(has)items.push({type:"item",id:it.id,text:it.text,part:p,a});}
+  const seen=new Set();
+  for(const p of parts)for(const sec of p.sections)for(const it of sec.items){if(seen.has(it.id))continue;seen.add(it.id);const a=answers[it.id];const has=(a?.reply&&String(a.reply).trim())||(a?.replyImages&&a.replyImages.length>0);if(has)items.push({type:"item",id:it.id,text:it.text,part:p,a});}
   // 自由回饋的回覆
   if(freeformReplies){
     Object.entries(freeformReplies).forEach(([k,fr])=>{
