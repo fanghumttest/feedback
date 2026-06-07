@@ -232,20 +232,20 @@ function Nav({parts,cur,onSelect,answers,freeform,repliesCount}) {
   </nav>);
 }
 
-function Welcome({onStart,initialNick}) {
+function Welcome({onStart,initialNick,formClosed}) {
   const [nick,setNick]=useState(initialNick||"");const [device,setDevice]=useState("");const [browser,setBrowser]=useState("");
   const ok=nick.trim().length>0&&device.length>0&&browser.length>0;
   const Btn=({items,val,set})=>(<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{items.map(d=><button key={d} onClick={()=>set(d)} style={{padding:"7px 16px",borderRadius:20,border:`2px solid ${val===d?"#8B5A2B":"rgba(0,0,0,.1)"}`,background:val===d?"#8B5A2B":"transparent",color:val===d?"#fff":"#6b5830",cursor:"pointer",fontSize:13,fontWeight:500}}>{d}</button>)}</div>);
   return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",padding:20}}>
     <div style={{width:"100%",maxWidth:480,padding:"40px 32px",borderRadius:20,background:"rgba(255,255,255,.75)",backdropFilter:"blur(20px)",boxShadow:"0 8px 40px rgba(91,58,31,.08)",border:"1px solid rgba(255,255,255,.6)"}}>
-      <div style={{textAlign:"center",marginBottom:28}}><img src={logoImg} alt="Logo" style={{width:72,height:72,objectFit:"contain",marginBottom:8,display:"block",margin:"0 auto 8px"}}/><h1 style={{margin:0,fontSize:24,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>方壺山道場</h1><p style={{margin:"6px 0 0",fontSize:14,color:"#9a8a6e"}}>網站測試回饋系統</p></div>
+      <div style={{textAlign:"center",marginBottom:28}}><img src={logoImg} alt="Logo" style={{width:72,height:72,objectFit:"contain",marginBottom:8,display:"block",margin:"0 auto 8px"}}/><h1 style={{margin:0,fontSize:24,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>方壺山道場</h1><p style={{margin:"6px 0 0",fontSize:14,color:"#9a8a6e"}}>{formClosed?"測試已結束，輸入清信號查看管理員回覆":"網站測試回饋系統"}</p></div>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
         <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:4}}>清信號 <span style={{color:"#c49000"}}>*</span><span style={{fontWeight:400,color:"#9a8a6e",fontSize:12}}>（換裝置請填一樣的清信號）</span></label><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="ex. 清000" style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid rgba(0,0,0,.12)",fontSize:14,background:"rgba(255,255,255,.8)",boxSizing:"border-box",outline:"none"}}/></div>
         <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>使用裝置 <span style={{color:"#c49000"}}>*</span><span style={{fontWeight:400,color:"#9a8a6e",fontSize:12}}>（本次「電腦」和「手機或平板」都要測）</span></label><Btn items={["電腦","手機","平板"]} val={device} set={setDevice}/></div>
         <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>瀏覽器 <span style={{color:"#c49000"}}>*</span></label><Btn items={["Chrome","Safari","Firefox","Edge","其他"]} val={browser} set={setBrowser}/></div>
       </div>
-      <button onClick={()=>ok&&onStart({nickname:nick.trim(),device,browser})} disabled={!ok} style={{width:"100%",marginTop:24,padding:"14px 0",borderRadius:12,background:ok?"linear-gradient(135deg,#8B5A2B,#A67B5B)":"#d5cfc3",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:ok?"pointer":"default",letterSpacing:1}}>開始填寫 →</button>
-      <p style={{textAlign:"center",marginTop:16,fontSize:12,color:"#b8ad9c"}}>預計 40–60 分鐘，可分次完成</p>
+      <button onClick={()=>ok&&onStart({nickname:nick.trim(),device,browser})} disabled={!ok} style={{width:"100%",marginTop:24,padding:"14px 0",borderRadius:12,background:ok?"linear-gradient(135deg,#8B5A2B,#A67B5B)":"#d5cfc3",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:ok?"pointer":"default",letterSpacing:1}}>{formClosed?"查看回覆 →":"開始填寫 →"}</button>
+      <p style={{textAlign:"center",marginTop:16,fontSize:12,color:"#b8ad9c"}}>{formClosed?"請填入當初測試用的清信號與裝置":"預計 40–60 分鐘，可分次完成"}</p>
     </div>
   </div>);
 }
@@ -420,6 +420,10 @@ export default function FeedbackApp() {
   const scrollTop=()=>{contentRef.current?.scrollTo({top:0,behavior:"smooth"});};
 
   if(loading)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e"}}><img src={logoImg} alt="Logo" style={{width:56,height:56,objectFit:"contain",marginBottom:12}}/><p>載入中...</p></div></div>);
+  if(!authed)return <PasscodeGate onPass={(g)=>{ setGroup(g||null); setAuthed(true); localStorage.setItem('fhmt_authed','1'); localStorage.setItem('fhmt_group', g||''); }} />;
+  if(!parts||parts.length===0)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e",maxWidth:400,padding:20}}><div style={{fontSize:40,marginBottom:12}}>📋</div><h2 style={{color:"#5B3A1F"}}>題目尚未設定</h2><p style={{fontSize:14,lineHeight:1.7}}>請聯絡管理員到 /admin 初始化題目。</p></div></div>);
+  if(visibleParts.length===0)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e",maxWidth:400,padding:20}}><div style={{fontSize:40,marginBottom:12}}>🔑</div><h2 style={{color:"#5B3A1F"}}>這組通行碼目前沒有題目</h2><p style={{fontSize:14,lineHeight:1.7}}>請聯絡管理方確認你的通行碼，或稍後再試。</p><button onClick={()=>{localStorage.removeItem('fhmt_authed');localStorage.removeItem('fhmt_group');location.reload();}} style={{marginTop:16,padding:"10px 20px",borderRadius:10,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",color:"#fff",border:"none",cursor:"pointer",fontSize:13,fontWeight:600}}>重新輸入通行碼</button></div></div>);
+  if(view==="welcome")return <Welcome onStart={handleStart} initialNick={prefillNick} formClosed={formClosed} />;
   if(formClosed){
     if(closedShowReplies&&replyCount>0)return(
       <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",fontFamily:"'Noto Sans TC',-apple-system,sans-serif"}}>
@@ -435,15 +439,13 @@ export default function FeedbackApp() {
         <div style={{textAlign:"center",maxWidth:420}}>
           <img src={logoImg} alt="Logo" style={{width:90,height:90,objectFit:"contain",display:"block",margin:"0 auto 20px"}}/>
           <h2 style={{color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif",fontSize:24,margin:"0 0 14px"}}>本次測試已結束</h2>
-          <p style={{color:"#9a8a6e",fontSize:15,lineHeight:1.9,margin:"0 0 24px"}}>謝謝你的參與 🙏</p>
-          {replyCount>0&&<button onClick={()=>setClosedShowReplies(true)} style={{padding:"12px 28px",borderRadius:12,background:"linear-gradient(135deg,#6B8E4E,#8aad6a)",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:"pointer"}}>📣 查看管理員回覆（{replyCount}）</button>}
+          <p style={{color:"#9a8a6e",fontSize:15,lineHeight:1.9,margin:"0 0 24px"}}>{replyCount>0?"謝謝你的參與 🙏 以下是管理員的回覆。":"謝謝你的參與 🙏"}</p>
+          {replyCount>0
+            ? <button onClick={()=>setClosedShowReplies(true)} style={{padding:"12px 28px",borderRadius:12,background:"linear-gradient(135deg,#6B8E4E,#8aad6a)",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:"pointer"}}>📣 查看管理員回覆（{replyCount}）</button>
+            : <button onClick={handleSwitch} style={{padding:"12px 28px",borderRadius:12,background:"rgba(255,255,255,.7)",border:"1px solid rgba(0,0,0,.1)",color:"#6b5830",fontSize:14,fontWeight:600,cursor:"pointer"}}>用其他清信號 / 裝置查看回覆</button>}
         </div>
       </div>);
   }
-  if(!authed)return <PasscodeGate onPass={(g)=>{ setGroup(g||null); setAuthed(true); localStorage.setItem('fhmt_authed','1'); localStorage.setItem('fhmt_group', g||''); }} />;
-  if(!parts||parts.length===0)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e",maxWidth:400,padding:20}}><div style={{fontSize:40,marginBottom:12}}>📋</div><h2 style={{color:"#5B3A1F"}}>題目尚未設定</h2><p style={{fontSize:14,lineHeight:1.7}}>請聯絡管理員到 /admin 初始化題目。</p></div></div>);
-  if(visibleParts.length===0)return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)"}}><div style={{textAlign:"center",color:"#9a8a6e",maxWidth:400,padding:20}}><div style={{fontSize:40,marginBottom:12}}>🔑</div><h2 style={{color:"#5B3A1F"}}>這組通行碼目前沒有題目</h2><p style={{fontSize:14,lineHeight:1.7}}>請聯絡管理方確認你的通行碼，或稍後再試。</p><button onClick={()=>{localStorage.removeItem('fhmt_authed');localStorage.removeItem('fhmt_group');location.reload();}} style={{marginTop:16,padding:"10px 20px",borderRadius:10,background:"linear-gradient(135deg,#8B5A2B,#A67B5B)",color:"#fff",border:"none",cursor:"pointer",fontSize:13,fontWeight:600}}>重新輸入通行碼</button></div></div>);
-  if(view==="welcome")return <Welcome onStart={handleStart} initialNick={prefillNick} />;
   if(submitted){
     const bothDone=coverage&&coverage.pc&&coverage.mobile;
     const missing=coverage?(!coverage.pc?"電腦":!coverage.mobile?"手機或平板":null):null;
