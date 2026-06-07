@@ -402,13 +402,24 @@ export default function FeedbackApp() {
       Object.values(all||{}).forEach(raw=>{
         let d; try{ d=typeof raw==='string'?JSON.parse(raw):raw; }catch{ return; }
         if(!d||d.nickname!==info.nickname)return;
+        const dev=d.device||'';               // 標示這則回覆來自哪個裝置
+        const tag=dev?`【${dev}】`:'';
         Object.entries(d.answers||{}).forEach(([id,a])=>{
-          const has=(a?.reply&&String(a.reply).trim())||(a?.replyImages&&a.replyImages.length>0);
-          if(has&&!ma[id])ma[id]=a;
+          const hasR=a?.reply&&String(a.reply).trim();
+          const hasI=a?.replyImages&&a.replyImages.length>0;
+          if(!hasR&&!hasI)return;
+          // 同題號、不同裝置都各有回覆 → 串接，避免互蓋
+          if(!ma[id])ma[id]={reply:'',replyImages:[],comment:a.comment};
+          if(hasR)ma[id].reply+=(ma[id].reply?'\n\n':'')+tag+a.reply;
+          if(hasI)ma[id].replyImages=[...ma[id].replyImages,...a.replyImages];
         });
         Object.entries(d.freeformReplies||{}).forEach(([k,fr])=>{
-          const has=(fr?.text&&String(fr.text).trim())||(fr?.images&&fr.images.length>0);
-          if(has&&!mfr[k])mfr[k]=fr;
+          const hasR=fr?.text&&String(fr.text).trim();
+          const hasI=fr?.images&&fr.images.length>0;
+          if(!hasR&&!hasI)return;
+          if(!mfr[k])mfr[k]={text:'',images:[]};
+          if(hasR)mfr[k].text+=(mfr[k].text?'\n\n':'')+tag+fr.text;
+          if(hasI)mfr[k].images=[...mfr[k].images,...fr.images];
         });
       });
       setParts(allPartsRef.current||[]);
