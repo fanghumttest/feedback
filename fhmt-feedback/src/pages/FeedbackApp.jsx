@@ -38,6 +38,7 @@ async function loadGroupCodes() { return parseVal(await dbGet('kv/groupCodes'));
 async function loadFormStatus() { return parseVal(await dbGet('kv/formStatus')); }
 async function saveF(uid, d)  { return await dbSet(`kv/feedbacks/${safeId(uid)}`, JSON.stringify(d)); }
 async function loadF(uid)     { return parseVal(await dbGet(`kv/feedbacks/${safeId(uid)}`)); }
+async function loadAllF()      { return await dbGet('kv/feedbacks'); }
 
 function PasscodeGate({ onPass }) {
   const [code, setCode] = useState("");
@@ -234,18 +235,18 @@ function Nav({parts,cur,onSelect,answers,freeform,repliesCount}) {
 
 function Welcome({onStart,initialNick,formClosed}) {
   const [nick,setNick]=useState(initialNick||"");const [device,setDevice]=useState("");const [browser,setBrowser]=useState("");
-  const ok=nick.trim().length>0&&device.length>0&&browser.length>0;
+  const ok=formClosed?nick.trim().length>0:(nick.trim().length>0&&device.length>0&&browser.length>0);
   const Btn=({items,val,set})=>(<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{items.map(d=><button key={d} onClick={()=>set(d)} style={{padding:"7px 16px",borderRadius:20,border:`2px solid ${val===d?"#8B5A2B":"rgba(0,0,0,.1)"}`,background:val===d?"#8B5A2B":"transparent",color:val===d?"#fff":"#6b5830",cursor:"pointer",fontSize:13,fontWeight:500}}>{d}</button>)}</div>);
   return(<div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#f7f0e3,#ede3d0,#e6d8c1)",padding:20}}>
     <div style={{width:"100%",maxWidth:480,padding:"40px 32px",borderRadius:20,background:"rgba(255,255,255,.75)",backdropFilter:"blur(20px)",boxShadow:"0 8px 40px rgba(91,58,31,.08)",border:"1px solid rgba(255,255,255,.6)"}}>
       <div style={{textAlign:"center",marginBottom:28}}><img src={logoImg} alt="Logo" style={{width:72,height:72,objectFit:"contain",marginBottom:8,display:"block",margin:"0 auto 8px"}}/><h1 style={{margin:0,fontSize:24,color:"#5B3A1F",fontFamily:"'Noto Serif TC',serif"}}>方壺山道場</h1><p style={{margin:"6px 0 0",fontSize:14,color:"#9a8a6e"}}>{formClosed?"測試已結束，輸入清信號查看管理員回覆":"網站測試回饋系統"}</p></div>
       <div style={{display:"flex",flexDirection:"column",gap:16}}>
         <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:4}}>清信號 <span style={{color:"#c49000"}}>*</span><span style={{fontWeight:400,color:"#9a8a6e",fontSize:12}}>（換裝置請填一樣的清信號）</span></label><input value={nick} onChange={e=>setNick(e.target.value)} placeholder="ex. 清000" style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1px solid rgba(0,0,0,.12)",fontSize:14,background:"rgba(255,255,255,.8)",boxSizing:"border-box",outline:"none"}}/></div>
-        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>使用裝置 <span style={{color:"#c49000"}}>*</span><span style={{fontWeight:400,color:"#9a8a6e",fontSize:12}}>（本次「電腦」和「手機或平板」都要測）</span></label><Btn items={["電腦","手機","平板"]} val={device} set={setDevice}/></div>
-        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>瀏覽器 <span style={{color:"#c49000"}}>*</span></label><Btn items={["Chrome","Safari","Firefox","Edge","其他"]} val={browser} set={setBrowser}/></div>
+        {!formClosed&&<><div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>使用裝置 <span style={{color:"#c49000"}}>*</span><span style={{fontWeight:400,color:"#9a8a6e",fontSize:12}}>（本次「電腦」和「手機或平板」都要測）</span></label><Btn items={["電腦","手機","平板"]} val={device} set={setDevice}/></div>
+        <div><label style={{fontSize:13,fontWeight:600,color:"#6B4E2E",display:"block",marginBottom:6}}>瀏覽器 <span style={{color:"#c49000"}}>*</span></label><Btn items={["Chrome","Safari","Firefox","Edge","其他"]} val={browser} set={setBrowser}/></div></>}
       </div>
       <button onClick={()=>ok&&onStart({nickname:nick.trim(),device,browser})} disabled={!ok} style={{width:"100%",marginTop:24,padding:"14px 0",borderRadius:12,background:ok?"linear-gradient(135deg,#8B5A2B,#A67B5B)":"#d5cfc3",color:"#fff",fontSize:15,fontWeight:700,border:"none",cursor:ok?"pointer":"default",letterSpacing:1}}>{formClosed?"查看回覆 →":"開始填寫 →"}</button>
-      <p style={{textAlign:"center",marginTop:16,fontSize:12,color:"#b8ad9c"}}>{formClosed?"請填入當初測試用的清信號與裝置":"預計 40–60 分鐘，可分次完成"}</p>
+      <p style={{textAlign:"center",marginTop:16,fontSize:12,color:"#b8ad9c"}}>{formClosed?"只需填入當初測試用的清信號即可":"預計 40–60 分鐘，可分次完成"}</p>
     </div>
   </div>);
 }
@@ -334,7 +335,7 @@ export default function FeedbackApp() {
   const uid=userInfo?`${userInfo.nickname}-${userInfo.device}-${userInfo.browser}`:null;
 
   const doSave=useCallback(async()=>{
-    if(!uid)return;
+    if(!uid||formClosed)return;
     setSaveStatus("saving");
     // 先撈 DB 最新狀態，把管理員可能剛寫的回覆欄位合併進來，避免覆寫
     const remote=await loadF(uid);
@@ -366,14 +367,14 @@ export default function FeedbackApp() {
     });
     setSaveStatus("saved");
     setTimeout(()=>setSaveStatus(""),2000);
-  },[uid,userInfo,group,answers,freeform,freeformReplies]);
+  },[uid,userInfo,group,answers,freeform,freeformReplies,formClosed]);
 
   useEffect(()=>{
-    if(!uid)return;
+    if(!uid||formClosed)return;
     if(saveT.current)clearTimeout(saveT.current);
     saveT.current=setTimeout(doSave,1200);
     return()=>{if(saveT.current)clearTimeout(saveT.current);};
-  },[answers,freeform,doSave,uid]);
+  },[answers,freeform,doSave,uid,formClosed]);
 
   // 送出後讀取此清信號的裝置涵蓋（電腦 / 手機平板 有沒有都測過）
   useEffect(()=>{
@@ -394,6 +395,27 @@ export default function FeedbackApp() {
     localStorage.setItem('fhmt_user',JSON.stringify(info));
     localStorage.setItem('fhmt_authed','1');
     setUserInfo(info);
+    if(formClosed){
+      // 表單已關閉：只用清信號撈該會員「所有裝置」的回覆，合併顯示（不需比對裝置/瀏覽器）
+      const all=await loadAllF();
+      const ma={}; const mfr={};
+      Object.values(all||{}).forEach(raw=>{
+        let d; try{ d=typeof raw==='string'?JSON.parse(raw):raw; }catch{ return; }
+        if(!d||d.nickname!==info.nickname)return;
+        Object.entries(d.answers||{}).forEach(([id,a])=>{
+          const has=(a?.reply&&String(a.reply).trim())||(a?.replyImages&&a.replyImages.length>0);
+          if(has&&!ma[id])ma[id]=a;
+        });
+        Object.entries(d.freeformReplies||{}).forEach(([k,fr])=>{
+          const has=(fr?.text&&String(fr.text).trim())||(fr?.images&&fr.images.length>0);
+          if(has&&!mfr[k])mfr[k]=fr;
+        });
+      });
+      setParts(allPartsRef.current||[]);
+      setAnswers(ma);setFreeform({});setFreeformReplies(mfr);
+      setView("form");
+      return;
+    }
     const allQ=allPartsRef.current||[];
     // parts 維持全部，cur 校正到「該組別 + 該裝置」的第一個關卡（顯示交由 visibleParts 過濾）
     setParts(allQ);
